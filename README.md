@@ -253,11 +253,42 @@ Passkeys provide **passwordless authentication** with secure encrypted storage:
 
 ### 🛡️ Input Security & Sanitization
 
-All inputs are passed through the `SecurityScanner` utility before reaching the encryption engine or the DOM.
+All inputs are passed through the enhanced `SecurityScanner` utility with comprehensive protection:
 
-* **XSS Prevention:** Uses `textContent` mapping and `SecurityScanner.escapeHTML()` to neutralize malicious scripts before rendering
-* **Injection Detection:** Active Regex scanning blocks SQL injection patterns (e.g., `' OR 1=1`) and script tags during `Add/Update` cycles
-* **Privacy (Auto-Hide):** Localized 30-second timers manage the visibility state of passwords in the DOM to prevent "shoulder surfing"
+#### XSS Prevention (15+ Attack Vectors)
+* **Script Tags**: Detects all variations of `<script>` tags
+* **Event Handlers**: Blocks `onclick`, `onerror`, `onload`, and all DOM event attributes
+* **JavaScript Protocol**: Prevents `javascript:` URL schemes
+* **Data URIs**: Blocks `data:text/html` injection
+* **HTML Entities**: Detects entity encoding attempts (`&#...;`)
+* **SVG/Iframe Injection**: Prevents embedded content attacks
+* **Object/Embed Tags**: Blocks plugin-based XSS
+* **Meta Refresh**: Prevents redirect-based XSS
+* **Style-Based XSS**: Blocks CSS `expression()` and `@import`
+* **Link Tag Injection**: Prevents malicious stylesheet injection
+
+#### Input Validation & Sanitization
+* **Title Sanitization**: All entry titles validated and sanitized before storage
+* **Control Character Removal**: Strips null bytes and control characters
+* **SQL Injection Detection**: Defense-in-depth pattern matching
+* **Whitespace Normalization**: Automatic trimming and cleanup
+
+#### Duplicate Password Detection
+* **Password Reuse Checking**: Warns when using same password across entries
+* **User Confirmation**: Requires explicit approval to proceed with duplicate
+* **Entry Listing**: Shows which entries already use the password
+* **Edit Exclusion**: Ignores current entry when checking for duplicates
+
+#### Base32 Validation for TOTP
+* **Alphabet Validation**: Ensures only A-Z, 2-7, and '=' characters
+* **Padding Verification**: Validates correct Base32 padding (1, 3, 4, or 6 chars)
+* **Length Checking**: Enforces minimum 16-character requirement
+* **Format Detection**: Clear error messages for each validation failure
+
+#### Privacy & Security
+* **Auto-Hide Passwords**: 30-second timers prevent shoulder surfing
+* **Error Handling**: Secure error messages without information leakage
+* **Validation Errors**: User-friendly alerts for security violations
 
 ### 🛡️ Anti-Clickjacking Implementation
 
