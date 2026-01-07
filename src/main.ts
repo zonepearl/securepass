@@ -35,6 +35,7 @@ let sessionKey: CryptoKey | null = null;
 let vault: { entries: any[] } = { entries: [] };
 let isDecoyMode = false;
 let editingId: string | null = null;
+let currentCategory = 'all'; // Track active category filter
 
 /**
  * Generate a cryptographically secure random salt
@@ -312,107 +313,262 @@ async function setupDuress() {
 }
 
 /**
- * 5. CORE UI RENDERING (WITH NULL-GUARDS)
+ * 5. CORE UI RENDERING - NEW TABLE VIEW
  */
 async function renderUI() {
-    const list = document.getElementById('vault-list');
-    if (!list) return;
+    renderTable();
+    updateCategoryCounts();
+}
 
-    list.innerHTML = '';
+/**
+ * Update category counts in sidebar
+ */
+function updateCategoryCounts() {
+    const counts: Record<string, number> = {
+        all: vault.entries.length,
+        favorites: 0,
+        work: 0,
+        personal: 0,
+        finance: 0,
+        social: 0,
+        other: 0
+    };
+
+    vault.entries.forEach(entry => {
+        const cat = entry.category || 'other';
+        if (counts[cat] !== undefined) counts[cat]++;
+        if (entry.favorite) counts.favorites++;
+    });
+
+    Object.keys(counts).forEach(cat => {
+        const el = document.getElementById(`count-${cat}`);
+        if (el) el.textContent = counts[cat].toString();
+    });
+}
+
+/**
+ * Render entries in table view
+ */
+async function renderTable() {
+    const tbody = document.getElementById('vault-table-body');
+    const emptyState = document.getElementById('empty-state');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
     const searchEl = document.getElementById('search-input') as HTMLInputElement;
     const query = searchEl ? searchEl.value.toLowerCase() : "";
 
-    for (const entry of vault.entries) {
-        if (query && !entry.title.toLowerCase().includes(query)) continue;
-
-        const entropy = calculateEntropy(entry.password);
-        const card = document.createElement('div');
-        card.className = 'entry-card';
-
-        // Build TOTP section if secret exists
-        const totpSection = entry.totpSecret ? `
-            <div style="margin-top: 10px; padding: 10px; background: var(--form-bg); border-radius: 6px; border: 1px dashed var(--border);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 11px; font-weight: 600; color: var(--primary);">🔐 2FA CODE</span>
-                    <span class="totp-timer" style="font-size: 10px; color: var(--warning);">⏱️ --s</span>
-                </div>
-                <div class="totp-code" style="font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; font-family: monospace; margin: 8px 0;">------</div>
-            </div>
-        ` : '';
-
-        card.innerHTML = `
-            <div style="display:flex; justify-content:space-between">
-                <strong>${SecurityScanner.escapeHTML(entry.title)}</strong>
-                <div>
-                    <button class="edit-btn" style="color:var(--primary); background:none; font-size:10px;">Edit</button>
-                    <button class="del-btn" style="color:var(--danger); background:none; font-size:10px;">Del</button>
-                </div>
-            </div>
-            <div class="audit-badge ${entropy < 60 ? 'badge-danger' : 'badge-success'}">
-                ${entropy < 60 ? '⚠️ Weak' : '✅ Secure'} (${entropy} bits)
-            </div>
-
-             <div class="password-row" style="display: flex; justify-content: space-between; align-items: center; background: var(--form-bg); padding: 8px; border-radius: 6px;">
-                <span class="pwd-display" style="letter-spacing: 2px; font-family: monospace;">••••••••</span>
-                <button class="toggle-eye" style="background:none; border:none; cursor:pointer; font-size: 16px;">👁️</button>
-            </div>
-            ${totpSection}
-            <button class="audit-btn" style="font-size:10px; background:none; color:var(--primary); padding:0; margin-top:5px;">Check Breach</button>
-            <div id="res-${entry.id}" style="font-size:10px; margin-top:5px;"></div>
-        `;
-
-        // Scoped Selectors: Search INSIDE the card, not the whole document
-        const pwdDisplay = card.querySelector('.pwd-display') as HTMLElement;
-        const toggleEye = card.querySelector('.toggle-eye') as HTMLButtonElement;
-        let isVisible = false;
-
-        toggleEye.addEventListener('click', () => {
-            isVisible = !isVisible;
-            pwdDisplay.innerText = isVisible ? entry.password : "••••••••";
-            pwdDisplay.style.letterSpacing = isVisible ? "normal" : "2px";
-            toggleEye.innerText = isVisible ? "🙈" : "👁️";
-        });
-
-        // TOTP Code Generator with Live Timer
-        if (entry.totpSecret) {
-            const totpCodeEl = card.querySelector('.totp-code') as HTMLElement;
-            const totpTimerEl = card.querySelector('.totp-timer') as HTMLElement;
-
-            const updateTOTP = () => {
-                const { code, secondsSecondsRemaining } = generateTOTP(entry.totpSecret);
-                if (totpCodeEl) totpCodeEl.innerText = code.match(/.{1,3}/g)?.join(' ') || code;
-                if (totpTimerEl) totpTimerEl.innerText = `⏱️ ${secondsSecondsRemaining}s`;
-            };
-
-            updateTOTP(); // Initial render
-            const interval = setInterval(updateTOTP, 1000);
-
-            // Cleanup on card removal (memory leak prevention)
-            card.addEventListener('DOMNodeRemoved', () => clearInterval(interval));
+    // Filter entries
+    let filteredEntries = vault.entries.filter(entry => {
+        // Category filter
+        if (currentCategory !== 'all') {
+            if (currentCategory === 'favorites' && !entry.favorite) return false;
+            if (currentCategory !== 'favorites' && entry.category !== currentCategory) return false;
         }
 
-        card.querySelector('.audit-btn')?.addEventListener('click', async () => {
-            const res = document.getElementById(`res-${entry.id}`)!;
-            res.innerText = "Checking HIBP database...";
-            const count = await checkPasswordBreach(entry.password);
-            res.innerHTML = count > 0 ? `<span style="color:red">🚨 Pwned ${count} times!</span>` : `<span style="color:green">🛡️ Safe</span>`;
-        });
+        // Search filter
+        if (query) {
+            const searchableText = `${entry.title} ${entry.username || ''}`.toLowerCase();
+            if (!searchableText.includes(query)) return false;
+        }
 
-        card.querySelector('.edit-btn')?.addEventListener('click', () => {
-            editingId = entry.id;
-            (document.getElementById('entry-title') as HTMLInputElement).value = entry.title;
-            (document.getElementById('new-password') as HTMLInputElement).value = entry.password;
-            const totpInput = document.getElementById('totp-secret') as HTMLInputElement;
-            if (totpInput) totpInput.value = entry.totpSecret || '';
-            (document.getElementById('add-btn') as HTMLButtonElement).innerText = "Update Entry";
-        });
+        return true;
+    });
 
-        card.querySelector('.del-btn')?.addEventListener('click', () => {
-            if (confirm("Delete this entry?")) { vault.entries = vault.entries.filter(x => x.id !== entry.id); renderUI(); }
-        });
-
-        list.appendChild(card);
+    // Show/hide empty state
+    if (emptyState) {
+        emptyState.classList.toggle('hidden', filteredEntries.length > 0);
     }
+
+    for (const entry of filteredEntries) {
+        const entropy = calculateEntropy(entry.password);
+        const categoryIcon = getCategoryIcon(entry.category || 'other');
+
+        const row = document.createElement('tr');
+        row.dataset.entryId = entry.id;
+
+        // Initial row with loading state for breach check
+        row.innerHTML = `
+            <td>
+                <span class="table-icon">${categoryIcon}</span>
+            </td>
+            <td>
+                <strong>${SecurityScanner.escapeHTML(entry.title)}</strong>
+            </td>
+            <td>
+                <span style="font-size: 12px; opacity: 0.7;">${getCategoryName(entry.category || 'other')}</span>
+            </td>
+            <td>
+                <span style="font-size: 13px; opacity: 0.8;">${SecurityScanner.escapeHTML(entry.username || '—')}</span>
+            </td>
+            <td>
+                ${entry.totpSecret ? '<span class="totp-indicator" style="cursor: pointer;">🔐 View</span>' : '<span style="opacity: 0.3;">—</span>'}
+            </td>
+            <td>
+                <span class="audit-badge ${entropy < 60 ? 'badge-danger' : 'badge-success'}" style="font-size: 10px;">
+                    ${entropy < 60 ? '⚠️ Weak' : '✅ Strong'}
+                </span>
+            </td>
+            <td class="breach-cell">
+                <span style="opacity: 0.5; font-size: 11px;">Checking...</span>
+            </td>
+            <td>
+                <div class="table-actions">
+                    <button class="icon-btn copy-pwd-btn" title="Copy Password">📋</button>
+                    <button class="icon-btn edit-btn" title="Edit">✏️</button>
+                    <button class="icon-btn del-btn" title="Delete">🗑️</button>
+                </div>
+            </td>
+        `;
+
+        // Check for breaches asynchronously
+        checkPasswordBreach(entry.password).then(count => {
+            const breachCell = row.querySelector('.breach-cell');
+            if (breachCell) {
+                if (count > 0) {
+                    breachCell.innerHTML = `<span class="audit-badge badge-danger" style="font-size: 10px;" title="Found in ${count.toLocaleString()} breaches">⚠️ ${count > 1000 ? '1K+' : count}</span>`;
+                } else {
+                    breachCell.innerHTML = `<span class="audit-badge badge-success" style="font-size: 10px;">✅ Safe</span>`;
+                }
+            }
+        }).catch(() => {
+            const breachCell = row.querySelector('.breach-cell');
+            if (breachCell) {
+                breachCell.innerHTML = `<span style="opacity: 0.3; font-size: 11px;">—</span>`;
+            }
+        });
+
+        // Copy password button
+        row.querySelector('.copy-pwd-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(entry.password);
+            const btn = e.target as HTMLElement;
+            const oldText = btn.textContent;
+            btn.textContent = '✅';
+            setTimeout(() => btn.textContent = oldText, 1500);
+        });
+
+        // Edit button
+        row.querySelector('.edit-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEntryModal(entry);
+        });
+
+        // Delete button
+        row.querySelector('.del-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete "${entry.title}"?`)) {
+                vault.entries = vault.entries.filter(x => x.id !== entry.id);
+                renderUI();
+            }
+        });
+
+        // TOTP indicator
+        row.querySelector('.totp-indicator')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showTOTPModal(entry);
+        });
+
+        // Row click to show details
+        row.addEventListener('click', () => {
+            showEntryDetails(entry);
+        });
+
+        tbody.appendChild(row);
+    }
+}
+
+/**
+ * Get category icon
+ */
+function getCategoryIcon(category: string): string {
+    const icons: Record<string, string> = {
+        work: '💼',
+        personal: '👤',
+        finance: '💳',
+        social: '🌐',
+        other: '📋'
+    };
+    return icons[category] || '📋';
+}
+
+/**
+ * Get category name
+ */
+function getCategoryName(category: string): string {
+    const names: Record<string, string> = {
+        work: 'Work',
+        personal: 'Personal',
+        finance: 'Finance',
+        social: 'Social',
+        other: 'Other'
+    };
+    return names[category] || 'Other';
+}
+
+/**
+ * Show entry details in modal
+ */
+function showEntryDetails(entry: any) {
+    const entropy = calculateEntropy(entry.password);
+    alert(`Service: ${entry.title}\nUsername: ${entry.username || 'N/A'}\nPassword: ${entry.password}\nCategory: ${getCategoryName(entry.category || 'other')}\nSecurity: ${entropy} bits`);
+}
+
+/**
+ * Show TOTP code in modal
+ */
+function showTOTPModal(entry: any) {
+    if (!entry.totpSecret) return;
+    const { code } = generateTOTP(entry.totpSecret);
+    const formattedCode = code.match(/.{1,3}/g)?.join(' ') || code;
+    navigator.clipboard.writeText(code);
+    alert(`2FA Code for ${entry.title}:\n\n${formattedCode}\n\n(Copied to clipboard)`);
+}
+
+/**
+ * Open entry modal for creating/editing
+ */
+function openEntryModal(entry?: any) {
+    const modal = document.getElementById('entry-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
+
+    if (!modal) return;
+
+    if (entry) {
+        // Edit mode
+        editingId = entry.id;
+        if (modalTitle) modalTitle.textContent = 'Edit Password Entry';
+        if (addBtn) addBtn.textContent = 'Update Entry';
+
+        (document.getElementById('entry-title') as HTMLInputElement).value = entry.title;
+        (document.getElementById('entry-username') as HTMLInputElement).value = entry.username || '';
+        (document.getElementById('new-password') as HTMLInputElement).value = entry.password;
+        (document.getElementById('entry-category') as HTMLSelectElement).value = entry.category || 'personal';
+        (document.getElementById('totp-secret') as HTMLInputElement).value = entry.totpSecret || '';
+    } else {
+        // Create mode
+        editingId = null;
+        if (modalTitle) modalTitle.textContent = 'New Password Entry';
+        if (addBtn) addBtn.textContent = 'Save Entry';
+
+        (document.getElementById('entry-title') as HTMLInputElement).value = '';
+        (document.getElementById('entry-username') as HTMLInputElement).value = '';
+        (document.getElementById('new-password') as HTMLInputElement).value = '';
+        (document.getElementById('entry-category') as HTMLSelectElement).value = 'personal';
+        (document.getElementById('totp-secret') as HTMLInputElement).value = '';
+    }
+
+    modal.classList.remove('hidden');
+}
+
+/**
+ * Close entry modal
+ */
+function closeEntryModal() {
+    const modal = document.getElementById('entry-modal');
+    if (modal) modal.classList.add('hidden');
+    editingId = null;
 }
 
 /**
@@ -455,6 +611,28 @@ document.getElementById('unlock-btn')?.addEventListener('click', async () => {
 
         if (decrypted || (!real && !decoy)) {
             if (decrypted) vault = JSON.parse(decrypted);
+
+            // Switch to vault mode layout
+            const app = document.getElementById('app');
+            const main = document.querySelector('main');
+            const footer = document.querySelector('footer');
+            const header = document.querySelector('header');
+
+            if (app) {
+                app.classList.remove('auth-mode');
+                app.classList.add('vault-mode');
+            }
+            if (main) {
+                main.classList.remove('auth-view');
+                main.classList.add('vault-view');
+            }
+            if (footer) {
+                footer.classList.add('hidden');
+            }
+            if (header) {
+                header.classList.add('hidden');
+            }
+
             document.getElementById('auth-section')?.classList.add('hidden');
             document.getElementById('vault-content')?.classList.remove('hidden');
             if (isDecoyMode) document.getElementById('decoy-indicator')?.classList.remove('hidden');
@@ -469,13 +647,15 @@ document.getElementById('unlock-btn')?.addEventListener('click', async () => {
 document.getElementById('wizard-next-btn')?.addEventListener('click', () => goToStep(2));
 document.getElementById('wizard-finish-btn')?.addEventListener('click', handleFinishSetup);
 
-document.getElementById('add-btn')?.addEventListener('click', () => {
+document.getElementById('add-btn')?.addEventListener('click', async () => {
     const titleEl = document.getElementById('entry-title') as HTMLInputElement;
+    const usernameEl = document.getElementById('entry-username') as HTMLInputElement;
     const pwdEl = document.getElementById('new-password') as HTMLInputElement;
+    const categoryEl = document.getElementById('entry-category') as HTMLSelectElement;
     const totpSecretEl = document.getElementById('totp-secret') as HTMLInputElement;
 
     if (!titleEl || !pwdEl || !titleEl.value || !pwdEl.value) {
-        alert("Title and Password are required.");
+        alert("Service name and Password are required.");
         return;
     }
 
@@ -483,15 +663,18 @@ document.getElementById('add-btn')?.addEventListener('click', () => {
         // ========== ENHANCED SECURITY CHECKS ==========
 
         // 1. XSS Prevention: Validate and sanitize title input
-        const sanitizedTitle = SecurityScanner.validateAndSanitize(titleEl.value, "Title");
+        const sanitizedTitle = SecurityScanner.validateAndSanitize(titleEl.value, "Service name");
 
-        // 2. XSS Prevention: Validate password (allow special chars but check for scripts)
+        // 2. XSS Prevention: Validate username
+        const sanitizedUsername = usernameEl?.value ? SecurityScanner.validateAndSanitize(usernameEl.value, "Username") : '';
+
+        // 3. XSS Prevention: Validate password (allow special chars but check for scripts)
         if (SecurityScanner.detectXSS(pwdEl.value)) {
             alert("Password contains potentially malicious content. Please use a different password.");
             return;
         }
 
-        // 3. Base32 Validation: Validate TOTP secret with enhanced checks
+        // 4. Base32 Validation: Validate TOTP secret with enhanced checks
         const totpSecret = totpSecretEl?.value.replace(/\s+/g, '').toUpperCase() || '';
         if (totpSecret) {
             const base32Validation = SecurityScanner.validateBase32(totpSecret);
@@ -520,6 +703,19 @@ document.getElementById('add-btn')?.addEventListener('click', () => {
             }
         }
 
+        // 5. Breach Check: Check if password has been compromised
+        const breachCount = await checkPasswordBreach(pwdEl.value);
+        if (breachCount > 0) {
+            const breachMessage = `⚠️ Data Breach Warning\n\n` +
+                                `This password has been found in ${breachCount.toLocaleString()} data breaches.\n\n` +
+                                `Using this password is highly insecure and puts your account at risk.\n\n` +
+                                `Do you want to continue anyway? (Not recommended)`;
+
+            if (!confirm(breachMessage)) {
+                return;
+            }
+        }
+
         // ========== END SECURITY CHECKS ==========
 
         if (editingId) {
@@ -527,23 +723,32 @@ document.getElementById('add-btn')?.addEventListener('click', () => {
             vault.entries[idx] = {
                 ...vault.entries[idx],
                 title: sanitizedTitle,
+                username: sanitizedUsername,
                 password: pwdEl.value,
+                category: categoryEl?.value || 'personal',
                 totpSecret: totpSecret || undefined
             };
             editingId = null;
-            (document.getElementById('add-btn') as HTMLButtonElement).innerText = "Add to Vault";
+            (document.getElementById('add-btn') as HTMLButtonElement).innerText = "Save Entry";
         } else {
             vault.entries.push({
                 id: crypto.randomUUID(),
                 title: sanitizedTitle,
+                username: sanitizedUsername,
                 password: pwdEl.value,
+                category: categoryEl?.value || 'personal',
                 totpSecret: totpSecret || undefined
             });
         }
 
+        // Clear form and close modal
         titleEl.value = "";
+        if (usernameEl) usernameEl.value = "";
         pwdEl.value = "";
+        if (categoryEl) categoryEl.value = 'personal';
         if (totpSecretEl) totpSecretEl.value = "";
+
+        closeEntryModal();
         renderUI();
 
     } catch (error) {
@@ -577,6 +782,25 @@ document.getElementById('lock-btn')?.addEventListener('click', () => location.re
 document.getElementById('enable-bio-btn')?.addEventListener('click', registerBiometrics);
 document.getElementById('bio-btn')?.addEventListener('click', biometricUnlock);
 document.getElementById('setup-duress-btn')?.addEventListener('click', setupDuress);
+
+// New UI event handlers
+document.getElementById('new-entry-btn')?.addEventListener('click', () => openEntryModal());
+document.getElementById('modal-cancel-btn')?.addEventListener('click', closeEntryModal);
+
+// Category switching
+document.querySelectorAll('.category-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+
+        // Update active state
+        document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+        target.classList.add('active');
+
+        // Update current category
+        currentCategory = target.getAttribute('data-category') || 'all';
+        renderUI();
+    });
+});
 
 
 

@@ -23,21 +23,193 @@
             --form-bg: #f1f5f9;
         }
         
-        body { 
-            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-            background: var(--bg); color: var(--text); 
-            display: flex; flex-direction: column; min-height: 100vh; margin: 0; 
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
         }
 
         /* Layout & Branding */
         header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1.5rem; text-align: center; }
+        header.hidden { display: none; }
         footer { margin-top: auto; padding: 2rem; text-align: center; font-size: 13px; opacity: 0.8; border-top: 1px solid var(--border); background: var(--card); }
-        main { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px; }
-        
-        #app { 
-            width: 100%; max-width: 550px; background: var(--card); padding: 2rem; 
-            border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); 
-            position: relative; overflow: hidden; 
+        footer.hidden { display: none; }
+        main { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; position: relative; }
+        main.auth-view { padding: 20px; }
+        main.vault-view { padding: 0; }
+
+        /* Auth Screen - Centered Layout */
+        #app.auth-mode {
+            width: 100%; max-width: 550px; background: var(--card); padding: 2rem;
+            border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            position: relative; overflow: hidden; margin: auto;
+        }
+
+        /* Vault Screen - Full Layout with Sidebar */
+        #app.vault-mode {
+            width: 100%; height: 100%; max-width: none; padding: 0;
+            display: flex; flex-direction: row; background: transparent; box-shadow: none;
+            border-radius: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        }
+
+        /* Vault Content Container */
+        #vault-content {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px; background: var(--card); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; height: 100%;
+        }
+
+        .sidebar-header {
+            padding: 20px; border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h2 {
+            margin: 0; font-size: 16px; font-weight: 700;
+            color: var(--text);
+        }
+
+        .category-list {
+            flex: 1; overflow-y: auto; padding: 8px;
+        }
+
+        .category-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; margin-bottom: 4px; border-radius: 8px;
+            cursor: pointer; transition: 0.2s; font-size: 14px;
+        }
+
+        .category-item:hover {
+            background: var(--form-bg);
+        }
+
+        .category-item.active {
+            background: var(--primary); color: white;
+        }
+
+        .category-icon {
+            font-size: 18px;
+        }
+
+        .category-name {
+            flex: 1;
+        }
+
+        .category-count {
+            font-size: 12px; opacity: 0.7;
+            background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 12px;
+        }
+
+        .sidebar-footer {
+            padding: 16px; border-top: 1px solid var(--border);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column; height: 100%;
+        }
+
+        .toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 24px; background: var(--card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toolbar-left {
+            display: flex; align-items: center; gap: 16px; flex: 1;
+        }
+
+        .toolbar-right {
+            display: flex; align-items: center; gap: 12px;
+        }
+
+        .search-box {
+            position: relative; width: 100%; max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%; padding: 10px 12px 10px 38px;
+            margin: 0; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 14px;
+        }
+
+        .search-icon {
+            position: absolute; left: 12px; top: 50%;
+            transform: translateY(-50%); opacity: 0.5;
+        }
+
+        /* Table View */
+        .table-container {
+            flex: 1; overflow: auto; background: var(--bg);
+        }
+
+        .passwords-table {
+            width: 100%; border-collapse: collapse;
+            background: var(--card);
+        }
+
+        .passwords-table thead {
+            position: sticky; top: 0; background: var(--card);
+            border-bottom: 2px solid var(--border); z-index: 10;
+        }
+
+        .passwords-table th {
+            text-align: left; padding: 16px 24px;
+            font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text); opacity: 0.7;
+        }
+
+        .passwords-table td {
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .passwords-table tbody tr {
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .passwords-table tbody tr:hover {
+            background: var(--form-bg);
+        }
+
+        .table-icon {
+            font-size: 20px; width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--form-bg); border-radius: 8px;
+        }
+
+        .table-actions {
+            display: flex; gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px; height: 32px; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px; cursor: pointer; border: none;
+            background: transparent; transition: 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--form-bg);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center; padding: 80px 20px;
+            color: var(--text); opacity: 0.5;
+        }
+
+        .empty-state-icon {
+            font-size: 64px; margin-bottom: 16px;
         }
 
         .hidden { display: none !important; }
@@ -108,10 +280,12 @@
         </div>
     </header>
 
-    <main>
-        <div id="app">
+    <main class="auth-view">
+        <div id="app" class="auth-mode">
+            <!-- Decoy Indicator (shows when in stealth mode) -->
             <div id="decoy-indicator" class="hidden">🎭 STEALTH MODE ACTIVE (DECOY VAULT)</div>
 
+            <!-- ============ AUTH SECTION ============ -->
             <section id="auth-section">
                 <div style="background: var(--form-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
                     <label style="font-size: 12px; font-weight: 600; opacity: 0.7;">MASTER ACCESS</label>
@@ -132,37 +306,111 @@
                 </div>
             </section>
 
+            <!-- ============ VAULT SECTION (New Layout) ============ -->
             <section id="vault-content" class="hidden">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button id="setup-duress-btn" class="btn-outline" style="font-size: 11px; flex: 1;">Configure Duress</button>
-                    <button id="enable-bio-btn" class="btn-outline" style="font-size: 11px; flex: 1;">Link Biometrics</button>
-                </div>
-
-                <div id="entry-form" style="background: var(--form-bg); padding: 16px; border-radius: 12px; margin-bottom: 24px;">
-                    <input type="text" id="entry-title" placeholder="Service (e.g., GitHub, Bank)">
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="new-password" placeholder="Password" style="flex: 1;">
-                        <button id="gen-btn" class="btn-outline" title="Generate Secure Password">🎲</button>
-                    </div>
-                    <input type="text" id="totp-secret" placeholder="2FA Secret (Optional - Base32)" style="text-transform: uppercase;">
-                    <button id="add-btn" class="btn-primary" style="width: 100%; margin-top: 12px;">Add to Vault</button>
-                </div>
-
-                <hr style="border: 0; border-top: 1px solid var(--border); margin: 24px 0;">
-                
-                <input type="text" id="search-input" placeholder="🔍 Search your vault...">
-                
-                <div id="vault-list" style="margin-top: 20px;">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <h2>📂 Categories</h2>
                     </div>
 
-                <div style="display: flex; gap: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
-                    <button id="lock-btn" class="btn-outline">🔒 Lock</button>
-                    <button id="save-btn" style="background: var(--success); color: white; flex: 1;">Encrypt & Save Vault</button>
+                    <div class="category-list" id="category-list">
+                        <div class="category-item active" data-category="all">
+                            <span class="category-icon">🔐</span>
+                            <span class="category-name">All Items</span>
+                            <span class="category-count" id="count-all">0</span>
+                        </div>
+                        <div class="category-item" data-category="favorites">
+                            <span class="category-icon">⭐</span>
+                            <span class="category-name">Favorites</span>
+                            <span class="category-count" id="count-favorites">0</span>
+                        </div>
+                        <div class="category-item" data-category="work">
+                            <span class="category-icon">💼</span>
+                            <span class="category-name">Work</span>
+                            <span class="category-count" id="count-work">0</span>
+                        </div>
+                        <div class="category-item" data-category="personal">
+                            <span class="category-icon">👤</span>
+                            <span class="category-name">Personal</span>
+                            <span class="category-count" id="count-personal">0</span>
+                        </div>
+                        <div class="category-item" data-category="finance">
+                            <span class="category-icon">💳</span>
+                            <span class="category-name">Finance</span>
+                            <span class="category-count" id="count-finance">0</span>
+                        </div>
+                        <div class="category-item" data-category="social">
+                            <span class="category-icon">🌐</span>
+                            <span class="category-name">Social</span>
+                            <span class="category-count" id="count-social">0</span>
+                        </div>
+                        <div class="category-item" data-category="other">
+                            <span class="category-icon">📋</span>
+                            <span class="category-name">Other</span>
+                            <span class="category-count" id="count-other">0</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-footer">
+                        <button id="setup-duress-btn" class="btn-outline" style="width: 100%; font-size: 12px; margin-bottom: 8px;">🎭 Configure Duress</button>
+                        <button id="enable-bio-btn" class="btn-outline" style="width: 100%; font-size: 12px;">☝️ Link Biometrics</button>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="main-content">
+                    <!-- Toolbar -->
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="search-input" placeholder="Search vault...">
+                            </div>
+                        </div>
+                        <div class="toolbar-right">
+                            <button id="new-entry-btn" class="btn-primary">
+                                <span>➕</span>
+                                <span>New Password</span>
+                            </button>
+                            <button id="save-btn" class="btn-primary" style="background: var(--success);">💾 Save</button>
+                            <button id="lock-btn" class="btn-outline">🔒 Lock</button>
+                        </div>
+                    </div>
+
+                    <!-- Table Container -->
+                    <div class="table-container">
+                        <table class="passwords-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;"></th>
+                                    <th>Service</th>
+                                    <th>Category</th>
+                                    <th>Username / Email</th>
+                                    <th style="width: 100px;">2FA</th>
+                                    <th style="width: 100px;">Security</th>
+                                    <th style="width: 110px;">Breach</th>
+                                    <th style="width: 120px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vault-table-body">
+                                <!-- Entries will be populated here -->
+                            </tbody>
+                        </table>
+
+                        <!-- Empty State -->
+                        <div id="empty-state" class="empty-state hidden">
+                            <div class="empty-state-icon">🔐</div>
+                            <h3>No passwords yet</h3>
+                            <p>Click "New Password" to add your first entry</p>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
     </main>
 
+    <!-- ============ SETUP WIZARD ============ -->
     <div id="setup-wizard" class="modal-overlay hidden">
         <div class="modal-content">
             <div id="step-1" class="wizard-step">
@@ -173,13 +421,59 @@
                 </p>
                 <button id="wizard-next-btn" class="btn-primary" style="width: 100%; margin-top: 20px;">I Accept the Responsibility</button>
             </div>
-            
+
             <div id="step-2" class="wizard-step hidden">
                 <h2 style="margin-top: 0;">Create Master Key</h2>
                 <p style="font-size: 14px; opacity: 0.8;">Set your primary password (Min. 12 characters).</p>
                 <input type="password" id="setup-pwd" placeholder="New Master Password">
                 <input type="password" id="setup-pwd-conf" placeholder="Confirm Password">
                 <button id="wizard-finish-btn" class="btn-primary" style="width: 100%; margin-top: 20px;">Create My Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ ENTRY EDITOR MODAL ============ -->
+    <div id="entry-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="margin-top: 0;" id="modal-title">New Password Entry</h2>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">SERVICE NAME</label>
+                <input type="text" id="entry-title" placeholder="e.g., GitHub, Gmail, Bank of America">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">USERNAME / EMAIL</label>
+                <input type="text" id="entry-username" placeholder="Optional">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">PASSWORD</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="new-password" placeholder="Password" style="flex: 1; margin: 0;">
+                    <button id="gen-btn" class="btn-outline" title="Generate Secure Password">🎲</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">CATEGORY</label>
+                <select id="entry-category" style="width: 100%; padding: 12px; margin: 0; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card);">
+                    <option value="personal">👤 Personal</option>
+                    <option value="work">💼 Work</option>
+                    <option value="finance">💳 Finance</option>
+                    <option value="social">🌐 Social</option>
+                    <option value="other">📋 Other</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">2FA SECRET (Optional - Base32)</label>
+                <input type="text" id="totp-secret" placeholder="JBSWY3DPEHPK3PXP" style="text-transform: uppercase; margin: 0;">
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button id="modal-cancel-btn" class="btn-outline" style="flex: 1;">Cancel</button>
+                <button id="add-btn" class="btn-primary" style="flex: 1;">Save Entry</button>
             </div>
         </div>
     </div>
