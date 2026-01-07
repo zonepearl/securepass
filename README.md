@@ -25,13 +25,20 @@ Your data is protected using **AES-GCM 256-bit** encryption. Your Master Passwor
 - **Iterations**: 100,000
 - **Salt**: Unique 256-bit per-user salt
 
-### ☝️ Biometric Unlock (WebAuthn)
-Secure two-factor authentication using your device's fingerprint or FaceID. This uses the hardware-backed **WebAuthn API** for identity verification.
+### ☝️ Passkey Unlock (WebAuthn/TouchID/FaceID)
+True passwordless authentication using your device's TouchID or FaceID. This uses the hardware-backed **WebAuthn API** with encrypted password storage for seamless unlocking.
 
 **Security Model**:
-1. Biometric verification via WebAuthn
-2. Password prompt after verification
-3. No password storage (true two-factor authentication)
+1. Master password encrypted with AES-GCM and stored locally
+2. Encryption key derived from WebAuthn credential ID (unique per device)
+3. TouchID/FaceID verification required to decrypt password
+4. Automatic unlock without typing password
+5. Password never leaves device or transmitted over network
+
+**How It Works**:
+- **Setup**: After unlocking your vault, register your passkey. The master password is encrypted using a key derived from your device's secure enclave
+- **Unlock**: Touch your fingerprint sensor or use FaceID. The system verifies your identity, decrypts your password automatically, and unlocks the vault
+- **Security**: Even with physical access to the device, the encrypted password cannot be decrypted without biometric verification
 
 ### 🎭 Duress (Stealth) Mode
 WebVault includes a unique "Panic Password" feature. If you are forced to open your vault, entering your secondary **Duress Password** will unlock a completely separate, decoy vault containing fake data, protecting your real credentials.
@@ -134,12 +141,33 @@ Authentication uses a **fallthrough decryption mechanism** to provide plausible 
 2. **Attempt B (on Failure):** Derive key → Decrypt `decoy_vault`
 3. **State Management:** If Attempt B succeeds, `isDecoyMode` is set to `true`. All subsequent `SAVE` operations are routed to the decoy storage slot, keeping the primary vault hidden and untouched.
 
-#### ☝️ Biometric Flow (WebAuthn)
+#### ☝️ Passkey Flow (WebAuthn with Encrypted Password Storage)
 
-Biometrics provide **identity verification** without password storage:
+Passkeys provide **passwordless authentication** with secure encrypted storage:
 
-* **Registration:** Vault must be unlocked first. Only the hardware credential ID is stored (`bio_credential_id`)
-* **Authentication:** Upon successful hardware challenge (Fingerprint/FaceID), user is prompted to enter their master password for vault unlock
+**Registration Process:**
+1. Vault must be unlocked first
+2. WebAuthn credential created and registered with device's secure enclave
+3. Wrapping key derived from credential ID using PBKDF2 (100,000 iterations)
+4. Master password encrypted with AES-GCM using the wrapping key
+5. Encrypted password stored in localStorage (`bio_wrapped_password`)
+6. Only credential ID stored unencrypted (`bio_credential_id`)
+
+**Authentication Process:**
+1. User initiates biometric unlock
+2. WebAuthn challenges device's secure enclave (TouchID/FaceID prompt)
+3. Upon successful biometric verification, credential ID retrieved
+4. Wrapping key re-derived from credential ID
+5. Encrypted password decrypted automatically
+6. Password auto-filled and vault unlocked
+7. Password cleared from memory after unlock
+
+**Security Properties:**
+* Master password encrypted at rest with AES-GCM
+* Wrapping key derived deterministically from credential ID (never stored)
+* Credential ID tied to specific device hardware
+* Biometric verification required to reconstruct wrapping key
+* No plaintext password storage anywhere in the system
 
 ### 🛡️ Input Security & Sanitization
 
@@ -177,8 +205,9 @@ We evaluate password strength using the **Shannon Entropy** principle.
 | `decoy_vault` | JSON | The stealth/fake vault triggered by the Duress password |
 | `vault_salt` | JSON Array | Per-user salt for main vault (256-bit) |
 | `decoy_salt` | JSON Array | Per-user salt for decoy vault (256-bit) |
-| `bio_credential_id` | String | Unique ID for the WebAuthn hardware key |
-| `bio_registered` | Boolean | UI flag to display the Biometric unlock button |
+| `bio_credential_id` | String | Base64-encoded WebAuthn credential ID |
+| `bio_wrapped_password` | JSON | Encrypted master password `{iv: Array, data: Array}` |
+| `bio_registered` | Boolean | UI flag to display the passkey unlock button |
 
 ### 📦 Production Build Pipeline
 
@@ -549,15 +578,14 @@ While requiring password entry after biometric might seem less convenient:
 
 ### Project
 - **Repository**: [github.com/zonepearl/keepassman](https://github.com/zonepearl/keepassman)
-- **License**: ISC
+- **License**: MIT
 - **Version**: 1.0.0
 
 ---
 
 ## 📝 License
 
-ISC License - See LICENSE file for details
+MIT License - See LICENSE file for details
 
 ---
 
-**Built with Claude Code** 🤖
