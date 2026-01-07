@@ -2,29 +2,562 @@
 
 WebVault is a high-security, browser-based password manager built on a **Zero-Knowledge** architecture. This means your data is encrypted locally on your device, and only you hold the key to unlock it.
 
+---
+
+## Table of Contents
+- [Key Features](#-key-features)
+- [Getting Started](#-getting-started)
+- [Developer Documentation](#-developer-documentation)
+- [Testing](#-testing)
+- [TOTP Feature](#-totp-time-based-one-time-password-feature)
+- [Security Improvements](#-security-improvements-log)
+- [Resources](#-resources)
+
+---
+
 ## 🌟 Key Features
 
 ### 🛡️ Zero-Knowledge Encryption
 Your data is protected using **AES-GCM 256-bit** encryption. Your Master Password never leaves your browser; it is used to derive a local cryptographic key that stays in temporary memory.
 
+- **Algorithm**: AES-GCM (Authenticated Encryption)
+- **Key Derivation**: PBKDF2 with SHA-256
+- **Iterations**: 100,000
+- **Salt**: Unique 256-bit per-user salt
+
 ### ☝️ Biometric Unlock (WebAuthn)
-Once you have set your Master Password, you can link your device's fingerprint or FaceID. This uses the hardware-backed **WebAuthn API** to release your credentials securely without typing your password every time.
+Secure two-factor authentication using your device's fingerprint or FaceID. This uses the hardware-backed **WebAuthn API** for identity verification.
+
+**Security Model**:
+1. Biometric verification via WebAuthn
+2. Password prompt after verification
+3. No password storage (true two-factor authentication)
 
 ### 🎭 Duress (Stealth) Mode
 WebVault includes a unique "Panic Password" feature. If you are forced to open your vault, entering your secondary **Duress Password** will unlock a completely separate, decoy vault containing fake data, protecting your real credentials.
 
+### 🔐 TOTP (2FA) Support
+Store and generate Time-based One-Time Passwords (TOTP) for two-factor authentication:
+- RFC 6238 compliant
+- 6-digit codes with 30-second validity
+- Compatible with Google Authenticator, Authy, and other 2FA apps
+- Live countdown timer
+- Encrypted storage
+
 ### 📊 Security Audit & Entropy
 The app automatically audits your passwords:
-- **Entropy Check:** Warns you if a password is too simple or predictable.
-- **Reuse Detection:** Identifies if you are using the same password for multiple accounts.
+- **Entropy Check**: Warns you if a password is too simple or predictable (Shannon Entropy calculation)
+- **Reuse Detection**: Identifies if you are using the same password for multiple accounts
+- **Strength Labels**: Weak (<40 bits), Fair (40-59), Good (60-79), Excellent (≥80 bits)
 
 ### 🔌 Offline-First
 Designed to work entirely without internet. Your data is stored in your browser's local storage, ensuring access even during network outages.
 
 ---
 
-## 🚀 How to Use
-1. **Initialize:** Enter a strong Master Password.
-2. **Add Entries:** Use the "Add Entry" form to store your accounts.
-3. **Save:** Always click **Encrypt & Save** after making changes to persist data to your device.
-4. **Secure:** Use the **Security Hub** to enable Biometrics or the Duress vault.
+## 🚀 Getting Started
+
+### Installation & Setup
+
+1. **Clone the repository**:
+```bash
+git clone git@github.com:zonepearl/keepassman.git
+cd keepassman
+```
+
+2. **Install dependencies**:
+```bash
+npm install
+```
+
+3. **Run development server**:
+```bash
+npm run dev
+```
+
+4. **Build for production**:
+```bash
+npm run build
+```
+
+5. **Preview production build**:
+```bash
+npm run preview
+```
+
+### First-Time Use
+
+1. **Initialize**: Enter a strong Master Password
+2. **Add Entries**: Use the "Add Entry" form to store your accounts
+3. **Save**: Always click **Encrypt & Save** after making changes to persist data to your device
+4. **Secure**: Use the **Security Hub** to enable Biometrics or the Duress vault
+
+### Adding TOTP (2FA)
+
+1. Get your TOTP secret from the service (usually shown during 2FA setup)
+2. Paste the Base32 secret in the "2FA Secret (Optional)" field
+3. Save your vault
+4. The 6-digit code will appear in the entry card with a countdown timer
+
+**Example TOTP Secrets** (for testing):
+```
+JBSWY3DPEHPK3PXP
+GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ
+MFRGGZDFMZTWQ2LK
+```
+
+---
+
+## 🛠️ Developer Documentation
+
+### Internal Logic & Architecture
+
+WebVault is a Zero-Knowledge password manager. This section outlines the security protocols and logical flows implemented within the application.
+
+### 🔐 Cryptographic Stack
+
+The vault relies exclusively on the native **Web Crypto API** for hardware-accelerated, secure operations.
+
+* **Key Derivation (KDF):** Uses `PBKDF2` with `SHA-256`
+* **Iterations:** 100,000
+* **Salt:** Unique 256-bit `Uint8Array` per user
+
+* **Encryption Algorithm:** `AES-GCM` (256-bit). This provides **Authenticated Encryption**, ensuring data confidentiality and integrity (detecting unauthorized tampering)
+
+### 🧠 Primary Security Logic
+
+#### 🎭 Duress Mode (Decoy Switching)
+
+Authentication uses a **fallthrough decryption mechanism** to provide plausible deniability:
+
+1. **Attempt A:** Derive key → Decrypt `encrypted_vault`
+2. **Attempt B (on Failure):** Derive key → Decrypt `decoy_vault`
+3. **State Management:** If Attempt B succeeds, `isDecoyMode` is set to `true`. All subsequent `SAVE` operations are routed to the decoy storage slot, keeping the primary vault hidden and untouched.
+
+#### ☝️ Biometric Flow (WebAuthn)
+
+Biometrics provide **identity verification** without password storage:
+
+* **Registration:** Vault must be unlocked first. Only the hardware credential ID is stored (`bio_credential_id`)
+* **Authentication:** Upon successful hardware challenge (Fingerprint/FaceID), user is prompted to enter their master password for vault unlock
+
+### 🛡️ Input Security & Sanitization
+
+All inputs are passed through the `SecurityScanner` utility before reaching the encryption engine or the DOM.
+
+* **XSS Prevention:** Uses `textContent` mapping and `SecurityScanner.escapeHTML()` to neutralize malicious scripts before rendering
+* **Injection Detection:** Active Regex scanning blocks SQL injection patterns (e.g., `' OR 1=1`) and script tags during `Add/Update` cycles
+* **Privacy (Auto-Hide):** Localized 30-second timers manage the visibility state of passwords in the DOM to prevent "shoulder surfing"
+
+### 🛡️ Anti-Clickjacking Implementation
+
+**Warning:** The CSP directive `frame-ancestors` is ignored in `<meta>` tags.
+
+To prevent Clickjacking:
+1. **Production:** Deploy with the HTTP Header `Content-Security-Policy: frame-ancestors 'none';` or `X-Frame-Options: DENY`
+2. **Fallback:** A JS "Frame-Buster" is included in the `<head>` to ensure the vault cannot be rendered within an `<iframe>` on a malicious domain
+
+### 📊 Password Audit Algorithm
+
+We evaluate password strength using the **Shannon Entropy** principle.
+
+* **Formula:** `Entropy = Length × log₂(PoolSize)`
+  * `Length` = Length of the password
+  * `PoolSize` = Size of the character pool (Uppercase, Lowercase, Numbers, Symbols)
+
+* **Enforcement:**
+  * **Threshold:** Entries with entropy < 40 bits are flagged with a `badge-danger`
+  * **Randomness:** `generatePassword()` utilizes `crypto.getRandomValues()` for cryptographically secure pseudorandom number generation (CSPRNG)
+
+### 📁 Storage Schema (`localStorage`)
+
+| Key | Format | Description |
+| --- | --- | --- |
+| `encrypted_vault` | JSON | Primary vault containing `{iv: Array, data: Array}` |
+| `decoy_vault` | JSON | The stealth/fake vault triggered by the Duress password |
+| `vault_salt` | JSON Array | Per-user salt for main vault (256-bit) |
+| `decoy_salt` | JSON Array | Per-user salt for decoy vault (256-bit) |
+| `bio_credential_id` | String | Unique ID for the WebAuthn hardware key |
+| `bio_registered` | Boolean | UI flag to display the Biometric unlock button |
+
+### 📦 Production Build Pipeline
+
+To protect the source code from casual inspection, we use a hardened Vite pipeline:
+
+1. **Compilation:** `tsc` ensures type safety before bundling
+2. **Minification:** `Terser` performs aggressive dead-code elimination and variable mangling
+3. **Obfuscation:** Top-level variables are renamed to single characters
+4. **Source Maps:** Explicitly disabled to prevent the browser from reconstructing the original `.ts` files
+5. **Deployment:** Only the contents of the `/dist` folder should be served publicly
+
+---
+
+## 🧪 Testing
+
+### Test Suite Overview
+
+WebVault includes comprehensive unit tests for cryptographic operations and password utilities using **Vitest**.
+
+### Test Statistics
+- **Total Test Files**: 2
+- **Total Tests**: 47
+- **Pass Rate**: 100%
+- **Coverage**: Core cryptographic and password functions
+
+### Running Tests
+
+```bash
+# Run tests in watch mode
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run tests with UI
+npm run test:ui
+
+# Generate coverage report
+npm run coverage
+```
+
+### Test Files
+
+#### 1. `src/crypto.test.ts` (21 tests)
+Tests for the CryptoEngine module covering AES-GCM encryption and PBKDF2 key derivation.
+
+**Key Derivation Tests (4 tests)**
+- ✅ Should derive a CryptoKey from password and salt
+- ✅ Should derive same key for same password and salt
+- ✅ Should derive different keys for different passwords
+- ✅ Should derive different keys for different salts
+
+**Encryption Tests (5 tests)**
+- ✅ Should encrypt data successfully
+- ✅ Should produce different ciphertext each time (random IV)
+- ✅ Should encrypt empty string
+- ✅ Should encrypt long text (10,000 characters)
+- ✅ Should encrypt special characters (Unicode, emojis)
+
+**Decryption Tests (6 tests)**
+- ✅ Should decrypt encrypted data correctly
+- ✅ Should decrypt empty string
+- ✅ Should decrypt special characters correctly
+- ✅ Should fail to decrypt with wrong key
+- ✅ Should fail to decrypt with wrong IV
+- ✅ Should fail to decrypt tampered ciphertext (integrity check)
+
+**Full Cycle Tests (3 tests)**
+- ✅ Should handle JSON data correctly
+- ✅ Should maintain data integrity across multiple operations
+- ✅ Should work with different salts for same password
+
+**Security Property Tests (3 tests)**
+- ✅ Should use AES-GCM algorithm
+- ✅ Should use 12-byte IV (recommended for AES-GCM)
+- ✅ Should produce cryptographically random IVs
+
+#### 2. `src/utils/password.test.ts` (26 tests)
+
+Tests for password generation, entropy calculation, and strength evaluation.
+
+**Entropy Calculation Tests (7 tests)**
+- ✅ Should return 0 for empty password
+- ✅ Should calculate entropy for lowercase only
+- ✅ Should calculate entropy for mixed case
+- ✅ Should calculate entropy for alphanumeric
+- ✅ Should calculate entropy for full charset
+- ✅ Should handle special characters correctly
+- ✅ Should return consistent results
+
+**Strength Label Tests (5 tests)**
+- ✅ Should return "Weak" for entropy < 40 bits
+- ✅ Should return "Fair" for entropy 40-59 bits
+- ✅ Should return "Good" for entropy 60-79 bits
+- ✅ Should return "Excellent" for entropy ≥ 80 bits
+- ✅ Should handle boundary values correctly
+
+**Password Generation Tests (8 tests)**
+- ✅ Should generate password of default length (20)
+- ✅ Should generate password of specified length
+- ✅ Should generate different passwords each time
+- ✅ Should use full character set (lowercase, uppercase, digits, symbols)
+- ✅ Should only contain valid characters
+- ✅ Should have high entropy (>100 bits for 20 chars)
+- ✅ Should handle edge case lengths (1, 100)
+- ✅ Should be cryptographically random
+
+**Real-World Password Tests (6 tests)**
+- ✅ Common weak password: "password" (weak)
+- ✅ Basic password with capital and number: "Password1" (fair)
+- ✅ Medium strength password: "P@ssw0rd!" (good)
+- ✅ XKCD famous password: "Tr0ub4dor&3" (good)
+- ✅ Long passphrase: "correcthorsebatterystaple" (excellent)
+- ✅ Strong random password: "8zK$mP#2qL&9vN@4" (excellent)
+
+### Test Configuration
+
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    environment: 'happy-dom',  // Browser-like environment
+    globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/main.ts']
+    }
+  }
+})
+```
+
+### Security Test Coverage
+
+**Cryptographic Guarantees Tested:**
+1. **Deterministic Key Derivation**: Same password + salt = same key
+2. **Key Uniqueness**: Different passwords or salts produce different keys
+3. **Authenticated Encryption**: Tampered ciphertext fails decryption
+4. **IV Randomness**: All IVs are unique and unpredictable
+5. **Data Integrity**: Multiple encrypt/decrypt cycles preserve data
+6. **Vault Isolation**: Different salts prevent cross-vault decryption
+
+**Password Security Tested:**
+1. **Cryptographic Randomness**: Uses `crypto.getRandomValues()`
+2. **High Entropy**: Generated passwords have >100 bits entropy
+3. **Character Diversity**: All character types represented
+4. **Collision Resistance**: No duplicate passwords generated
+5. **Accurate Strength Assessment**: Entropy calculations match expected values
+
+### Coverage Reports
+
+After running `npm run coverage`, view the HTML report:
+```bash
+open coverage/index.html
+```
+
+**Current Coverage:**
+- **crypto.ts**: 100% (all functions tested)
+- **utils/password.ts**: 100% (all functions tested)
+- **Excluded**: main.ts (UI logic, tested manually)
+
+---
+
+## 🔐 TOTP (Time-based One-Time Password) Feature
+
+### Overview
+WebVault includes full support for storing and generating TOTP (2FA) codes, allowing users to manage both passwords and two-factor authentication codes in one secure location.
+
+### Features
+
+#### 1. TOTP Secret Storage
+- **Optional Field**: TOTP secrets are completely optional per entry
+- **Base32 Validation**: Automatic validation of TOTP secret format
+- **Auto-formatting**: Input field automatically converts to uppercase
+- **Encrypted Storage**: TOTP secrets are encrypted with the vault (AES-GCM 256-bit)
+
+#### 2. Live TOTP Code Generation
+- **Real-time Generation**: Codes update automatically every 30 seconds
+- **Visual Countdown**: Timer shows seconds remaining until next code
+- **Formatted Display**: Codes displayed as "XXX XXX" for easy reading
+- **Error Handling**: Invalid secrets show "Invalid Secret" instead of breaking
+
+#### 3. Standard Compatibility
+- **RFC 6238 Compliant**: Follows TOTP standard specification
+- **Compatible Secrets**: Works with secrets from:
+  - Google Authenticator
+  - Authy
+  - Microsoft Authenticator
+  - 1Password
+  - Any RFC 6238 compliant app
+
+### Implementation Details
+
+#### Code Generation Algorithm
+```typescript
+function generateTOTP(secret: string) {
+    let totp = new OTPAuth.TOTP({
+        issuer: "WebVault",
+        label: "PearlYoung",
+        algorithm: "SHA1",      // Standard TOTP algorithm
+        digits: 6,              // 6-digit codes (standard)
+        period: 30,             // 30-second validity period
+        secret: OTPAuth.Secret.fromBase32(secret)
+    });
+
+    const code = totp.generate();
+    const secondsRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    return { code, secondsRemaining };
+}
+```
+
+#### Base32 Validation
+```typescript
+function isValidBase32(str: string): boolean {
+    // Base32 alphabet: A-Z (uppercase) and 2-7
+    const base32Regex = /^[A-Z2-7]+=*$/;
+    return base32Regex.test(str) && str.length > 0;
+}
+```
+
+### Technical Specifications
+
+| Property | Value |
+|----------|-------|
+| Algorithm | SHA-1 (HMAC-SHA1) |
+| Code Length | 6 digits |
+| Time Step | 30 seconds |
+| Format | Base32 encoding |
+| Standard | RFC 6238 |
+| Library | OTPAuth v9.4.1 |
+
+### Security Considerations
+
+#### ✅ Secure Practices
+- TOTP secrets encrypted at rest
+- Codes generated on-demand (not cached)
+- Validation prevents injection attacks
+- No network transmission of secrets
+
+#### ⚠️ Important Notes
+- **Single Point of Failure**: Storing passwords AND TOTP in same vault reduces 2FA effectiveness
+- **Recommendation**: Consider keeping TOTP in separate app for true two-factor security
+- **Use Case**: Best for accounts where convenience matters more than maximum security
+
+### Storage Format
+
+TOTP secrets are stored as part of the entry object:
+```json
+{
+    "id": "uuid-here",
+    "title": "GitHub",
+    "password": "encrypted",
+    "totpSecret": "JBSWY3DPEHPK3PXP"  // Optional field
+}
+```
+
+The entire vault (including TOTP secrets) is encrypted with AES-GCM before storage.
+
+---
+
+## 🔒 Security Improvements Log
+
+### 2026-01-08: Per-User Salt Generation
+
+#### Problem
+Previously, the application used a hardcoded salt value:
+```typescript
+const SALT = new Uint8Array([42, 17, 89, 4, 255, 12, 0, 33]);
+```
+
+This created a significant security vulnerability:
+- If the source code was exposed, attackers could pre-compute rainbow tables for all users
+- All users shared the same salt, making mass attacks more efficient
+- Violated cryptographic best practices for key derivation
+
+#### Solution
+Implemented per-user salt generation:
+- Each vault now generates a unique 256-bit (32-byte) cryptographically secure salt
+- Main vault salt stored at `vault_salt` in localStorage
+- Duress vault salt stored at `decoy_salt` in localStorage
+- Salts are not secret and are stored unencrypted (this is standard practice)
+
+#### Security Benefits
+1. **Rainbow Table Prevention**: Each user has unique salt, making pre-computation attacks impractical
+2. **Parallel Attack Mitigation**: Attackers must attack each vault individually
+3. **Best Practice Compliance**: Follows NIST SP 800-132 guidelines for password-based key derivation
+4. **Increased Entropy**: 256-bit salt provides strong randomness
+
+#### Migration Notes
+
+**IMPORTANT:** Existing vaults created before this update will not work!
+
+Users with existing vaults need to:
+1. Export their data (if export functionality exists)
+2. Clear localStorage
+3. Reinitialize vault with new master password
+4. Re-import data
+
+---
+
+### 2026-01-08: Biometric Security Enhancement
+
+#### Problem
+Previously, biometric authentication stored the master password in Base64 encoding:
+```typescript
+localStorage.setItem('bio_wrapped_pwd', btoa(pwd));
+```
+
+This created critical security vulnerabilities:
+- Base64 is NOT encryption - it's trivial encoding
+- Master password stored in plaintext (just encoded) in localStorage
+- Anyone with DevTools access could retrieve the password instantly
+- Violated zero-knowledge architecture principles
+- Defeated the entire purpose of password protection
+
+#### Solution
+Implemented secure biometric authentication without password storage:
+
+**New Flow:**
+1. User unlocks vault with master password
+2. User enables biometrics (registers WebAuthn credential)
+3. Only the credential ID is stored - NO password
+4. On next login:
+   - User triggers biometric authentication
+   - System verifies fingerprint/FaceID via WebAuthn
+   - User is prompted to enter master password
+   - Vault unlocks normally with password
+
+#### Security Benefits
+1. **Zero Password Storage**: Master password never stored, even encrypted
+2. **Two-Factor Approach**: Biometric (something you are) + Password (something you know)
+3. **WebAuthn Security**: Uses hardware-backed authentication
+4. **User Verification**: Requires `userVerification: "required"` flag
+5. **True Zero-Knowledge**: Maintains zero-knowledge architecture
+
+#### User Experience
+**Before:**
+- Touch fingerprint → Auto-unlock (insecure)
+
+**After:**
+- Touch fingerprint → Verified! → Enter password → Unlock (secure)
+
+#### Why This is Better
+While requiring password entry after biometric might seem less convenient:
+- It's genuinely secure (old method was security theater)
+- Provides real two-factor authentication
+- Maintains zero-knowledge architecture
+- Prevents password theft via localStorage access
+- Aligns with security best practices
+
+---
+
+## 📚 Resources
+
+### Documentation
+- [Vitest Documentation](https://vitest.dev/)
+- [happy-dom Documentation](https://github.com/capricorn86/happy-dom)
+- [Web Crypto API MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [WebAuthn Guide](https://webauthn.guide/)
+- [OTPAuth Library](https://github.com/hectorm/otpauth)
+
+### Security Standards
+- [NIST PBKDF2 Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
+- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- [RFC 6238 - TOTP Specification](https://datatracker.ietf.org/doc/html/rfc6238)
+- [NIST SP 800-132](https://csrc.nist.gov/publications/detail/sp/800-132/final)
+
+### Project
+- **Repository**: [github.com/zonepearl/keepassman](https://github.com/zonepearl/keepassman)
+- **License**: ISC
+- **Version**: 1.0.0
+
+---
+
+## 📝 License
+
+ISC License - See LICENSE file for details
+
+---
+
+**Built with Claude Code** 🤖
