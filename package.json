@@ -1,0 +1,31 @@
+{
+  "name": "keepassman",
+  "version": "1.0.0",
+  "description": "simple JS based web password manager offers fingerprint authentication, audit check, strong entropy calculation.",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@vitest/ui": "^4.0.16",
+    "happy-dom": "^20.1.0",
+    "terser": "^5.44.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "otpauth": "^9.4.1"
+  }
+}

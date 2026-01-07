@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data:;
+        connect-src 'self' https://api.pwnedpasswords.com;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';">
+    <title>WebVault | Early Availability Edition</title>
+    <link rel="stylesheet" href="/src/theme.css">
+    <style>
+        :root {
+            --primary: #2563eb; --primary-hover: #1d4ed8;
+            --danger: #ef4444; --success: #059669; --warning: #f59e0b;
+            --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --border: #e2e8f0;
+            --form-bg: #f1f5f9;
+        }
+        
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: var(--bg); color: var(--text); 
+            display: flex; flex-direction: column; min-height: 100vh; margin: 0; 
+        }
+
+        /* Layout & Branding */
+        header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1.5rem; text-align: center; }
+        footer { margin-top: auto; padding: 2rem; text-align: center; font-size: 13px; opacity: 0.8; border-top: 1px solid var(--border); background: var(--card); }
+        main { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px; }
+        
+        #app { 
+            width: 100%; max-width: 550px; background: var(--card); padding: 2rem; 
+            border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); 
+            position: relative; overflow: hidden; 
+        }
+
+        .hidden { display: none !important; }
+
+        /* Typography & Inputs */
+        h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.025em; }
+        input { 
+            width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); 
+            border-radius: 8px; box-sizing: border-box; font-size: 16px;
+        }
+        
+        button { 
+            padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; 
+            font-weight: 600; transition: 0.2s; display: inline-flex; 
+            align-items: center; justify-content: center; gap: 8px; 
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: var(--form-bg); }
+
+        /* Feature Grid (Login Screen) */
+        .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px; }
+        .feature-item { 
+            background: var(--form-bg); padding: 14px; border-radius: 10px; 
+            border: 1px solid var(--border); transition: 0.2s;
+        }
+        .feature-item:hover { border-color: var(--primary); }
+        .feature-item strong { display: block; font-size: 13px; color: var(--primary); margin-bottom: 4px; }
+        .feature-item p { font-size: 11px; margin: 0; opacity: 0.8; line-height: 1.4; }
+
+        /* Vault Elements */
+        .entry-card { border: 1px solid var(--border); padding: 16px; border-radius: 12px; margin-bottom: 12px; background: var(--card); }
+        .audit-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: bold; margin-bottom: 8px; display: inline-block; }
+        .badge-danger { background: #fee2e2; color: var(--danger); }
+        .badge-success { background: #dcfce7; color: var(--success); }
+        
+        .password-row { 
+            display: flex; align-items: center; gap: 10px; background: var(--form-bg); 
+            padding: 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+        }
+
+        /* Modals & Overlays */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(15, 23, 42, 0.9); display: flex; align-items: center; 
+            justify-content: center; z-index: 1000; backdrop-filter: blur(8px); 
+        }
+        .modal-content { 
+            background: var(--card); padding: 32px; border-radius: 24px; 
+            width: 90%; max-width: 420px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); 
+        }
+
+        #status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        #decoy-indicator { 
+            background: var(--warning); color: #000; text-align: center; padding: 8px; 
+            font-size: 12px; font-weight: bold; width: 100%; position: absolute; top: 0; left: 0; z-index: 50;
+        }
+    </style>
+    
+</head>
+<body>
+
+    <header>
+        <h1>🔐 WebVault</h1>
+        <div id="connection-status" style="font-size: 11px; margin-top: 8px; font-weight: 500;">
+            <span id="status-dot"></span> <span id="status-text">Synchronizing...</span>
+        </div>
+    </header>
+
+    <main>
+        <div id="app">
+            <div id="decoy-indicator" class="hidden">🎭 STEALTH MODE ACTIVE (DECOY VAULT)</div>
+
+            <section id="auth-section">
+                <div style="background: var(--form-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
+                    <label style="font-size: 12px; font-weight: 600; opacity: 0.7;">MASTER ACCESS</label>
+                    <input type="password" id="master-pwd" placeholder="Enter Master Password">
+                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                        <button id="unlock-btn" class="btn-primary" style="flex: 1;">Unlock Vault</button>
+                        <button id="bio-btn" class="btn-outline hidden">☝️ Bio-Unlock</button>
+                    </div>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-item"><strong>🔒 Zero-Knowledge</strong><p>Local AES-256 encryption. Only you hold the keys.</p></div>
+                    <div class="feature-item"><strong>☝️ WebAuthn</strong><p>Biometric hardware link for secure, instant access.</p></div>
+                    <div class="feature-item"><strong>🎭 Duress Mode</strong><p>Plausible deniability with a secondary decoy vault.</p></div>
+                    <div class="feature-item"><strong>🛡️ Breach Audit</strong><p>Real-time k-anonymity checks against HIBP leaks.</p></div>
+                    <div class="feature-item"><strong>📶 Offline-First</strong><p>No cloud dependency. Data stays on your device.</p></div>
+                    <div class="feature-item"><strong>📊 Entropy Audit</strong><p>Calculates password strength using bit-entropy.</p></div>
+                </div>
+            </section>
+
+            <section id="vault-content" class="hidden">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button id="setup-duress-btn" class="btn-outline" style="font-size: 11px; flex: 1;">Configure Duress</button>
+                    <button id="enable-bio-btn" class="btn-outline" style="font-size: 11px; flex: 1;">Link Biometrics</button>
+                </div>
+
+                <div id="entry-form" style="background: var(--form-bg); padding: 16px; border-radius: 12px; margin-bottom: 24px;">
+                    <input type="text" id="entry-title" placeholder="Service (e.g., GitHub, Bank)">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="new-password" placeholder="Password" style="flex: 1;">
+                        <button id="gen-btn" class="btn-outline" title="Generate Secure Password">🎲</button>
+                    </div>
+                    <input type="text" id="totp-secret" placeholder="2FA Secret (Optional - Base32)" style="text-transform: uppercase;">
+                    <button id="add-btn" class="btn-primary" style="width: 100%; margin-top: 12px;">Add to Vault</button>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 24px 0;">
+                
+                <input type="text" id="search-input" placeholder="🔍 Search your vault...">
+                
+                <div id="vault-list" style="margin-top: 20px;">
+                    </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
+                    <button id="lock-btn" class="btn-outline">🔒 Lock</button>
+                    <button id="save-btn" style="background: var(--success); color: white; flex: 1;">Encrypt & Save Vault</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="setup-wizard" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div id="step-1" class="wizard-step">
+                <h2 style="margin-top: 0;">Welcome to WebVault 🛡️</h2>
+                <p>This is a <strong>Zero-Knowledge</strong> application designed by <strong>Pearl Young</strong>.</p>
+                <p style="font-size: 14px; line-height: 1.5; opacity: 0.8;">
+                    We cannot recover your password. If you lose it, your data is gone forever. Please use a password you will never forget.
+                </p>
+                <button id="wizard-next-btn" class="btn-primary" style="width: 100%; margin-top: 20px;">I Accept the Responsibility</button>
+            </div>
+            
+            <div id="step-2" class="wizard-step hidden">
+                <h2 style="margin-top: 0;">Create Master Key</h2>
+                <p style="font-size: 14px; opacity: 0.8;">Set your primary password (Min. 12 characters).</p>
+                <input type="password" id="setup-pwd" placeholder="New Master Password">
+                <input type="password" id="setup-pwd-conf" placeholder="Confirm Password">
+                <button id="wizard-finish-btn" class="btn-primary" style="width: 100%; margin-top: 20px;">Create My Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p><strong>&copy; 2026 Open source.</strong> All rights reserved.</p>
+        <p style="margin-top: 4px;">Zero-Knowledge Architecture &bull; AES-GCM 256-bit &bull; PWA Ready</p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+<div class="theme-switch-wrapper">
+    <button id="theme-toggle" class="theme-switch-btn" title="Toggle Dark/Light Mode">🌓</button>
+</div>
+</html>

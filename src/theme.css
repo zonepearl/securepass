@@ -1,0 +1,73 @@
+/* theme.css */
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+    --bg: #0f172a !important;
+    /* Deep Slate Blue */
+    --card: #1e293b !important;
+    /* Lighter Slate */
+    --text: #f1f5f9 !important;
+    /* Off-White */
+    --border: #334155 !important;
+    /* Muted Slate */
+    --form-bg: #1e293b !important;
+    /* Secondary dark color */
+    --input-bg: #0f172a !important;
+}
+
+/* Force the background change on the highest level elements */
+[data-theme="dark"] body,
+[data-theme="dark"] html {
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+/* Ensure sections and headers follow suit */
+[data-theme="dark"] header,
+[data-theme="dark"] footer,
+[data-theme="dark"] #app,
+[data-theme="dark"] .feature-item,
+[data-theme="dark"] .entry-card {
+    background-color: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+/* Fix for the feature grid text specifically */
+[data-theme="dark"] .feature-item p {
+    color: #94a3b8;
+    /* Light gray for secondary text in dark mode */
+}
+
+
+/* Floating Theme Toggle Switch Styles */
+.theme-switch-wrapper {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1100;
+}
+
+.theme-switch-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-pwd-btn {
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.toggle-pwd-btn:hover {
+    opacity: 1;
+}
+
+[data-theme="dark"] .toggle-pwd-btn {
+    filter: invert(0.2); /* Adjusts emoji visibility in dark mode */
+}
