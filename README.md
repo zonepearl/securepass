@@ -9,8 +9,8 @@ By isolating sensitive operations like Argon2id key derivation, AES-256-GCM encr
 ## 📸 Overview
 
 <p align="center">
-  <img src="assets/WebVault-light-mode.png" alt="WebVault Light Mode" width="45%" />
-  <img src="assets/WebVault-dark-mode.png" alt="WebVault Dark Mode" width="45%" />
+   <img src="assets/securepass-light-mode.png" alt="SecurePass Light Mode" width="45%" />
+  <img src="assets/securepass-dark-mode.png" alt="SecurePass Dark Mode" width="45%" />
 </p>
 
 ---
