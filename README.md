@@ -1,6 +1,8 @@
 # 🔐 SecurePass: Zero-Knowledge Password Manager
 
-SecurePass is a high-security, browser-based password manager built on a **Zero-Knowledge** architecture. Your data is encrypted locally (AES-GCM 256-bit) on your device, and only you hold the key to unlock it.
+SecurePass is a next-generation, browser-based password manager engineered on a Zero-Knowledge foundation. It achieves elite performance and memory security by offloading all cryptographic heavy lifting to a Rust-powered WebAssembly (Wasm) engine, while utilizing TypeScript for a fluid and responsive user experience.
+
+By isolating sensitive operations like Argon2id key derivation, AES-256-GCM encryption, and high-precision TOTP generation within the Wasm sandbox, SecurePass ensures that master keys never touch the JavaScript heap in plaintext. Beyond its hardened core, the platform offers a premium "Modern Sky" interface featuring biometric passkey unlocking, a stealthy Duress Mode decoy vault, a smart entropy engine with guaranteed character diversity, and a real-time security dashboard for comprehensive vault health monitoring.
 
 ---
 
