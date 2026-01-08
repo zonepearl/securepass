@@ -1,5 +1,23 @@
 /* theme.css */
 
+/* ============================================
+   1. CSS VARIABLES
+   ============================================ */
+
+/* Light Theme Variables (Default) */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --danger: #ef4444;
+    --success: #059669;
+    --warning: #f59e0b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --border: #e2e8f0;
+    --form-bg: #f1f5f9;
+}
+
 /* Dark Theme Variables */
 [data-theme="dark"] {
     --bg: #0f172a !important;
@@ -39,24 +57,526 @@
     /* Light gray for secondary text in dark mode */
 }
 
+/* ============================================
+   2. BASE & LAYOUT STYLES
+   ============================================ */
 
-/* Floating Theme Toggle Switch Styles */
-.theme-switch-wrapper {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1100;
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.theme-switch-btn {
+/* Header */
+header {
     background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+}
+
+header.hidden {
+    display: none;
+}
+
+/* Theme toggle in header (auth page) */
+.header-theme-toggle {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    padding: 2rem;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.8;
+    border-top: 1px solid var(--border);
+    background: var(--card);
+}
+
+footer.hidden {
+    display: none;
+}
+
+/* Main Container */
+main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: hidden;
+    position: relative;
+}
+
+main.auth-view {
+    padding: 20px;
+}
+
+main.vault-view {
+    padding: 0;
+}
+
+/* ============================================
+   3. TYPOGRAPHY & FORM ELEMENTS
+   ============================================ */
+
+h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: -0.025em;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+}
+
+.btn-outline {
+    background: transparent;
     border: 1px solid var(--border);
     color: var(--text);
+}
+
+.btn-outline:hover {
+    background: var(--form-bg);
+}
+
+/* ============================================
+   4. AUTH & VAULT MODES
+   ============================================ */
+
+/* Auth Screen - Centered Layout */
+#app.auth-mode {
+    width: 100%;
+    max-width: 550px;
+    background: var(--card);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    margin: auto;
+}
+
+/* Vault Screen - Full Layout */
+#app.vault-mode {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* Vault Content Container */
+#vault-content {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+}
+
+/* Feature Grid (Auth Screen) */
+.features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.feature-item {
+    background: var(--form-bg);
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: 0.2s;
+}
+
+.feature-item:hover {
+    border-color: var(--primary);
+}
+
+.feature-item strong {
+    display: block;
+    font-size: 13px;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.feature-item p {
+    font-size: 11px;
+    margin: 0;
+    opacity: 0.8;
+    line-height: 1.4;
+}
+
+/* ============================================
+   5. SIDEBAR
+   ============================================ */
+
+.sidebar {
+    width: 260px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.category-list {
+    flex: 1;
+    overflow-y: auto;
     padding: 8px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.category-item:hover {
+    background: var(--form-bg);
+}
+
+.category-item.active {
+    background: var(--primary);
+    color: white;
+}
+
+.category-icon {
+    font-size: 18px;
+}
+
+.category-name {
+    flex: 1;
+}
+
+.category-count {
+    font-size: 12px;
+    opacity: 0.7;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+/* ============================================
+   6. TOOLBAR
+   ============================================ */
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-box {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 12px 10px 38px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+}
+
+/* ============================================
+   7. TABLE VIEW
+   ============================================ */
+
+.table-container {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg);
+}
+
+.passwords-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+}
+
+.passwords-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    z-index: 10;
+}
+
+.passwords-table th {
+    text-align: left;
+    padding: 16px 24px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    opacity: 0.7;
+}
+
+.passwords-table td {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.passwords-table tbody tr {
+    transition: background 0.15s;
+    cursor: pointer;
+}
+
+.passwords-table tbody tr:hover {
+    background: var(--form-bg);
+}
+
+.table-icon {
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--form-bg);
+    border-radius: 8px;
+}
+
+.table-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    transition: 0.2s;
+}
+
+.icon-btn:hover {
+    background: var(--form-bg);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text);
+    opacity: 0.5;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+/* ============================================
+   8. MODALS & OVERLAYS
+   ============================================ */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+}
+
+.modal-content {
+    background: var(--card);
+    padding: 32px;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   9. VAULT ELEMENTS & BADGES
+   ============================================ */
+
+.entry-card {
+    border: 1px solid var(--border);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: var(--card);
+}
+
+.audit-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    display: inline-block;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: var(--danger);
+}
+
+.badge-success {
+    background: #dcfce7;
+    color: var(--success);
+}
+
+.password-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--form-bg);
+    padding: 10px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+}
+
+/* ============================================
+   10. UTILITY CLASSES & MISC
+   ============================================ */
+
+.hidden {
+    display: none !important;
+}
+
+#status-dot {
+    height: 10px;
+    width: 10px;
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+    margin-right: 6px;
+}
+
+#decoy-indicator {
+    background: var(--warning);
+    color: #000;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
 }
 
 .toggle-pwd-btn {

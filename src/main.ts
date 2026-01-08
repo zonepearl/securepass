@@ -825,17 +825,34 @@ function initApp() {
 
     // theme-toggle logic in main.ts
     const themeBtn = document.getElementById('theme-toggle');
+    const themeGlobalBtns = document.querySelectorAll('.theme-toggle-global');
 
-    themeBtn?.addEventListener('click', () => {
+    const toggleTheme = () => {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const newTheme = isDark ? 'light' : 'dark';
 
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
 
-        // Optional: Change the emoji on the button
-        themeBtn.innerText = newTheme === 'dark' ? '☀️' : '🌓';
-    });
+        // Update button text based on current theme (showing what clicking will do)
+        const buttonText = newTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+
+        // Update toolbar button (in vault mode)
+        if (themeBtn) {
+            const span = themeBtn.querySelector('span');
+            if (span) span.textContent = buttonText;
+        }
+
+        // Update all global theme toggle buttons (header, etc.)
+        themeGlobalBtns.forEach(btn => {
+            const span = btn.querySelector('span');
+            if (span) span.textContent = buttonText;
+        });
+    };
+
+    // Attach event listeners
+    themeBtn?.addEventListener('click', toggleTheme);
+    themeGlobalBtns.forEach(btn => btn.addEventListener('click', toggleTheme));
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
     updateStatus();

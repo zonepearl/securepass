@@ -1,7 +1,7 @@
 {
-  "name": "keepassman",
+  "name": "securepass",
   "version": "1.0.0",
-  "description": "simple JS based web password manager offers fingerprint authentication, audit check, strong entropy calculation.",
+  "description": "Securepass: Zero-Knowledge Password Manager WebVault is a high-security, browser-based password manager built on a Zero-Knowledge architecture. This means your data is encrypted locally on your device, and only you hold the key to unlock it.",
   "private": true,
   "type": "module",
   "main": "index.js",

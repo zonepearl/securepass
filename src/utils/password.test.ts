@@ -116,7 +116,8 @@ describe('Password Utilities', () => {
     it('should only contain valid characters', () => {
       const password = generatePassword(100)
       // Charset: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=
-      const validCharset = /^[a-zA-Z0-9!@#$%^&*()_+~`|}{[\]:;?><,.\/-=]+$/
+      // Escape special regex characters in character class
+      const validCharset = /^[a-zA-Z0-9!@#$%^&*()\-_+=~`|}{[\]:;?><,./]+$/
       expect(validCharset.test(password)).toBe(true)
     })
 
