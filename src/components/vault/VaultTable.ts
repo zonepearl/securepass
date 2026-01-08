@@ -38,6 +38,11 @@ export class VaultTable extends BaseComponent {
             rowsHTML += `
                 <tr data-entry-id="${entry.id}">
                     <td>
+                        <span class="fav-btn ${entry.favorite ? 'active' : ''}" title="Toggle Favorite">
+                            ${entry.favorite ? '★' : '☆'}
+                        </span>
+                    </td>
+                    <td>
                         <span class="table-icon">${entry.title.charAt(0).toUpperCase()}</span>
                     </td>
                     <td>
@@ -135,6 +140,13 @@ export class VaultTable extends BaseComponent {
             // Row click to show details
             row.addEventListener('click', () => {
                 this.showEntryDetails(entry);
+            });
+
+            // Favorite toggle
+            const favBtn = row.querySelector('.fav-btn');
+            favBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vaultState.toggleFavorite(entry.id);
             });
         });
     }

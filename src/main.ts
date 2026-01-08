@@ -4,6 +4,9 @@ import { vaultState } from './state/VaultState.js';
 import { VaultUnlockService } from './services/VaultUnlockService.js';
 import './components/index.js'; // Register all Web Components
 import { showToast } from './components/shared/ToastNotification.js';
+import { AutoLockService } from './services/AutoLockService.js';
+
+let autoLockService: AutoLockService | null = null;
 
 
 
@@ -52,6 +55,20 @@ document.getElementById('unlock-btn')?.addEventListener('click', async () => {
             document.getElementById('auth-section')?.classList.add('hidden');
             document.getElementById('vault-content')?.classList.remove('hidden');
             if (result.isDecoyMode) document.getElementById('decoy-indicator')?.classList.remove('hidden');
+
+            // Initialize Auto-lock
+            if (!autoLockService) {
+                autoLockService = new AutoLockService(() => {
+                    document.dispatchEvent(new CustomEvent('lock-vault'));
+                });
+            }
+            autoLockService.start();
+
+            // Set initial value for auto-lock setting
+            const lockSelect = document.getElementById('autolock-setting') as HTMLSelectElement;
+            if (lockSelect && autoLockService) {
+                lockSelect.value = autoLockService.getDuration().toString();
+            }
         } else {
             showToast("Access Denied: Incorrect Master Password.", 'error');
         }
@@ -102,19 +119,13 @@ document.addEventListener('modal-closed', (() => {
 
 document.addEventListener('entry-saved', ((e: CustomEvent) => {
     const { entry, isEdit } = e.detail;
-    const currentVault = vaultState.getVault();
-    const newEntries = [...currentVault.entries];
 
     if (isEdit) {
-        const idx = newEntries.findIndex(x => x.id === entry.id);
-        if (idx !== -1) {
-            newEntries[idx] = entry;
-        }
+        vaultState.updateEntry(entry.id, entry);
     } else {
-        newEntries.push(entry);
+        vaultState.addEntry(entry);
     }
 
-    vaultState.setVault({ entries: newEntries });
     vaultState.setEditingId(null);
 }) as EventListener);
 
@@ -135,7 +146,20 @@ document.addEventListener('save-vault', (async () => {
 }) as EventListener);
 
 document.addEventListener('lock-vault', (() => {
+    if (autoLockService) autoLockService.stop();
     location.reload();
+}) as EventListener);
+
+// Listen for autolock setting changes
+document.addEventListener('change', ((e: Event) => {
+    const target = e.target as HTMLElement;
+    if (target.id === 'autolock-setting') {
+        const duration = parseInt((target as HTMLSelectElement).value, 10);
+        if (autoLockService) {
+            autoLockService.setDuration(duration);
+            showToast(`Auto-lock timer updated.`, 'success');
+        }
+    }
 }) as EventListener);
 
 

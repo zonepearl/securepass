@@ -74,7 +74,7 @@ SecurePass is a high-security, browser-based password manager built on a **Zero-
 
 For detailed architecture, security models, cryptographic specifications, and testing protocols, please refer to:
 
-👉 **[CONTEXT.md](./CONTEXT.md)**
+👉 **[DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md)**
 
 ---
 
@@ -90,4 +90,4 @@ For detailed architecture, security models, cryptographic specifications, and te
 
 ## 📄 License
 
-MIT License. Created by Pearl Young.
+MIT License.

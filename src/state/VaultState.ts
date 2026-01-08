@@ -13,6 +13,7 @@ interface VaultEntry {
     category: string;
     totpSecret?: string;
     favorite?: boolean;
+    history?: string[];
 }
 
 interface VaultData {
@@ -34,7 +35,7 @@ export class VaultState {
     // Listeners
     private listeners: Set<StateListener> = new Set();
 
-    private constructor() {}
+    private constructor() { }
 
     static getInstance(): VaultState {
         if (!VaultState.instance) {
@@ -141,7 +142,18 @@ export class VaultState {
     updateEntry(id: string, updates: Partial<VaultEntry>): void {
         const index = this.vault.entries.findIndex(e => e.id === id);
         if (index !== -1) {
-            this.vault.entries[index] = { ...this.vault.entries[index], ...updates };
+            const entry = this.vault.entries[index];
+
+            // Track password history if password is changed
+            if (updates.password && updates.password !== entry.password) {
+                const currentHistory = updates.history || entry.history || [];
+                // Add current password to history if it's not already at the top
+                if (currentHistory[0] !== entry.password) {
+                    updates.history = [entry.password, ...currentHistory].slice(0, 5);
+                }
+            }
+
+            this.vault.entries[index] = { ...entry, ...updates };
             this.notify();
         }
     }
@@ -149,6 +161,14 @@ export class VaultState {
     deleteEntry(id: string): void {
         this.vault.entries = this.vault.entries.filter(e => e.id !== id);
         this.notify();
+    }
+
+    toggleFavorite(id: string): void {
+        const entry = this.vault.entries.find(e => e.id === id);
+        if (entry) {
+            entry.favorite = !entry.favorite;
+            this.notify();
+        }
     }
 
     // Category counts

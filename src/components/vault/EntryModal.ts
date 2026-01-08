@@ -6,7 +6,7 @@
 import { BaseComponent } from '../BaseComponent.js';
 import { vaultState } from '../../state/VaultState.js';
 import { SecurityScanner } from '../../security.js';
-import { generatePassword } from '../../utils/password.js';
+import { generatePassword, generateMacPassword, generatePassphrase, PasswordOptions } from '../../utils/password.js';
 import { checkPasswordBreach } from '../../utils/breach-check.js';
 import { showToast } from '../shared/ToastNotification.js';
 
@@ -17,6 +17,8 @@ interface EntryData {
     password: string;
     category?: string;
     totpSecret?: string;
+    favorite?: boolean;
+    history?: string[];
 }
 
 export class EntryModal extends BaseComponent {
@@ -37,10 +39,56 @@ export class EntryModal extends BaseComponent {
 
         // Generate password button
         const genBtn = document.getElementById('gen-btn');
-        genBtn?.addEventListener('click', () => {
-            const pwdEl = document.getElementById('new-password') as HTMLInputElement;
-            if (pwdEl) pwdEl.value = generatePassword(20);
+        genBtn?.addEventListener('click', () => this.generateNewPassword());
+
+        // Generator type change
+        const genType = document.getElementById('gen-type') as HTMLSelectElement;
+        const genStdOptions = document.getElementById('gen-std-options');
+        genType?.addEventListener('change', () => {
+            if (genType.value === 'standard') {
+                genStdOptions?.classList.remove('hidden');
+            } else {
+                genStdOptions?.classList.add('hidden');
+            }
+            this.generateNewPassword();
         });
+
+        // Live update for length slider
+        const lenSlider = document.getElementById('gen-length') as HTMLInputElement;
+        const lenVal = document.getElementById('gen-length-val');
+        lenSlider?.addEventListener('input', () => {
+            if (lenVal) lenVal.textContent = lenSlider.value;
+            this.generateNewPassword();
+        });
+
+        // Other options change
+        ['gen-upper', 'gen-numbers', 'gen-symbols'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => this.generateNewPassword());
+        });
+    }
+
+    /**
+     * Generate password based on current UI settings
+     */
+    private generateNewPassword(): void {
+        const pwdEl = document.getElementById('new-password') as HTMLInputElement;
+        const genType = (document.getElementById('gen-type') as HTMLSelectElement)?.value || 'standard';
+
+        if (!pwdEl) return;
+
+        if (genType === 'mac') {
+            pwdEl.value = generateMacPassword();
+        } else if (genType === 'passphrase') {
+            pwdEl.value = generatePassphrase();
+        } else {
+            const options: PasswordOptions = {
+                length: parseInt((document.getElementById('gen-length') as HTMLInputElement)?.value || '20', 10),
+                useUppercase: (document.getElementById('gen-upper') as HTMLInputElement)?.checked ?? true,
+                useNumbers: (document.getElementById('gen-numbers') as HTMLInputElement)?.checked ?? true,
+                useSymbols: (document.getElementById('gen-symbols') as HTMLInputElement)?.checked ?? true
+            };
+            pwdEl.value = generatePassword(options);
+        }
     }
 
     /**
@@ -50,6 +98,8 @@ export class EntryModal extends BaseComponent {
         const modal = document.getElementById('entry-modal');
         const modalTitle = document.getElementById('modal-title');
         const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
+        const historySection = document.getElementById('history-section');
+        const historyList = document.getElementById('history-list');
 
         if (!modal) return;
 
@@ -64,6 +114,33 @@ export class EntryModal extends BaseComponent {
             (document.getElementById('new-password') as HTMLInputElement).value = entry.password;
             (document.getElementById('entry-category') as HTMLSelectElement).value = entry.category || 'personal';
             (document.getElementById('totp-secret') as HTMLInputElement).value = entry.totpSecret || '';
+            (document.getElementById('entry-favorite') as HTMLInputElement).checked = !!entry.favorite;
+
+            // Render history if available
+            if (historySection && historyList) {
+                if (entry.history && entry.history.length > 0) {
+                    historySection.classList.remove('hidden');
+                    historyList.innerHTML = entry.history.map(pwd => `
+                        <div class="history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 13px;">
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">${pwd}</span>
+                            <button class="btn-outline history-copy" data-pwd="${pwd}" style="padding: 4px 8px; font-size: 11px;">Copy</button>
+                        </div>
+                    `).join('');
+
+                    // Attach copy events
+                    historyList.querySelectorAll('.history-copy').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const pwd = (e.currentTarget as HTMLElement).getAttribute('data-pwd');
+                            if (pwd) {
+                                navigator.clipboard.writeText(pwd);
+                                showToast("Old password copied to clipboard.", 'success');
+                            }
+                        });
+                    });
+                } else {
+                    historySection.classList.add('hidden');
+                }
+            }
         } else {
             // Create mode
             this.editingEntry = null;
@@ -75,6 +152,9 @@ export class EntryModal extends BaseComponent {
             (document.getElementById('new-password') as HTMLInputElement).value = '';
             (document.getElementById('entry-category') as HTMLSelectElement).value = 'personal';
             (document.getElementById('totp-secret') as HTMLInputElement).value = '';
+            (document.getElementById('entry-favorite') as HTMLInputElement).checked = false;
+
+            if (historySection) historySection.classList.add('hidden');
         }
 
         modal.classList.remove('hidden');
@@ -110,6 +190,7 @@ export class EntryModal extends BaseComponent {
         const pwdEl = document.getElementById('new-password') as HTMLInputElement;
         const categoryEl = document.getElementById('entry-category') as HTMLSelectElement;
         const totpSecretEl = document.getElementById('totp-secret') as HTMLInputElement;
+        const favoriteEl = document.getElementById('entry-favorite') as HTMLInputElement;
 
 
         if (!titleEl || !pwdEl || !titleEl.value || !pwdEl.value) {
@@ -183,7 +264,9 @@ export class EntryModal extends BaseComponent {
                 username: sanitizedUsername,
                 password: pwdEl.value,
                 category: categoryEl?.value || 'personal',
-                totpSecret: totpSecret || undefined
+                totpSecret: totpSecret || undefined,
+                favorite: favoriteEl?.checked || false,
+                history: this.editingEntry?.history || []
             };
 
             // Dispatch event with entry data
@@ -202,6 +285,7 @@ export class EntryModal extends BaseComponent {
             pwdEl.value = "";
             if (categoryEl) categoryEl.value = 'personal';
             if (totpSecretEl) totpSecretEl.value = "";
+            if (favoriteEl) favoriteEl.checked = false;
 
             this.closeModal();
 

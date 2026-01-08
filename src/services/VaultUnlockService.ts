@@ -53,13 +53,14 @@ export class VaultUnlockService {
             }
         }
 
-        // If no vaults exist yet, create empty vault
+        // If no vaults exist yet, return failure
         if (!real && !decoy) {
             return {
-                success: true,
-                vault: { entries: [] },
+                success: false,
+                vault: null,
                 sessionKey: null,
-                isDecoyMode: false
+                isDecoyMode: false,
+                error: "No vault found. Please create a vault first."
             };
         }
 

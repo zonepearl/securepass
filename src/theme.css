@@ -749,6 +749,26 @@ button {
     font-style: italic;
 }
 
+.fav-btn {
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    user-select: none;
+    color: var(--text-secondary);
+    opacity: 0.4;
+    padding: 0 8px;
+}
+
+.fav-btn:hover {
+    transform: scale(1.2);
+    opacity: 0.8;
+}
+
+.fav-btn.active {
+    color: #f59e0b;
+    opacity: 1;
+}
+
 [data-theme="dark"] .toggle-pwd-btn {
     filter: invert(0.2);
     /* Adjusts emoji visibility in dark mode */
@@ -805,4 +825,13 @@ button {
 
 .toast-info .toast-icon {
     color: var(--primary);
+}
+
+.select-minimal {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px !important;
 }

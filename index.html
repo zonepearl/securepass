@@ -119,6 +119,19 @@
                     </div>
 
                     <div class="sidebar-footer">
+                        <div style="margin-bottom: 12px;">
+                            <label
+                                style="font-size: 10px; font-weight: 600; opacity: 0.6; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Auto-Lock
+                                Vault</label>
+                            <select id="autolock-setting" class="select-minimal"
+                                style="width: 100%; font-size: 12px; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text);">
+                                <option value="60000">1 Minute</option>
+                                <option value="300000">5 Minutes</option>
+                                <option value="900000">15 Minutes</option>
+                                <option value="1800000">30 Minutes</option>
+                                <option value="0">Never</option>
+                            </select>
+                        </div>
                         <duress-mode></duress-mode>
                         <button id="enable-bio-btn" class="btn-outline" style="width: 100%; font-size: 12px;">Link
                             Biometrics</button>
@@ -200,12 +213,50 @@
                 <input type="text" id="entry-username" placeholder="Optional">
             </div>
 
-            <div style="margin-bottom: 16px;">
+            <div style="margin-bottom: 20px;">
                 <label
                     style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">PASSWORD</label>
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input type="text" id="new-password" placeholder="Password" style="flex: 1; margin: 0;">
-                    <button id="gen-btn" class="btn-outline" title="Generate Secure Password">🎲</button>
+                    <button id="gen-btn" class="btn-primary" title="Regenerate Password"
+                        style="padding: 0 12px;">Regen</button>
+                </div>
+
+                <!-- Generator Options UI -->
+                <div id="gen-options"
+                    style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 11px; opacity: 0.6; display: block; margin-bottom: 4px;">FORMAT</label>
+                        <select id="gen-type" class="select-minimal"
+                            style="width: 100%; padding: 6px; border-radius: 4px;">
+                            <option value="standard">Standard (Random)</option>
+                            <option value="mac">Mac OS Style (xxx-xxx-xxx)</option>
+                            <option value="passphrase">Passphrase (Words)</option>
+                        </select>
+                    </div>
+
+                    <div id="gen-std-options">
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <label style="font-size: 11px; opacity: 0.6;">LENGTH: <span
+                                        id="gen-length-val">20</span></label>
+                            </div>
+                            <input type="range" id="gen-length" min="8" max="64" value="20"
+                                style="width: 100%; height: 4px; margin: 8px 0;">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="gen-upper" checked style="width: auto; margin: 0;"> Upper
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="gen-numbers" checked style="width: auto; margin: 0;"> Numbers
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="gen-symbols" checked style="width: auto; margin: 0;"> Symbols
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -227,6 +278,20 @@
                     SECRET (Optional - Base32)</label>
                 <input type="text" id="totp-secret" placeholder="JBSWY3DPEHPK3PXP"
                     style="text-transform: uppercase; margin: 0;">
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 24px;">
+                <input type="checkbox" id="entry-favorite" style="width: auto; margin: 0;">
+                <label for="entry-favorite" style="font-size: 13px; opacity: 0.8;">Mark as Favorite</label>
+            </div>
+
+            <!-- Password History Section -->
+            <div id="history-section" class="hidden"
+                style="margin-bottom: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
+                <label
+                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 8px;">PREVIOUS
+                    PASSWORDS</label>
+                <div id="history-list"></div>
             </div>
 
             <div style="display: flex; gap: 12px;">
