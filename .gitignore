@@ -57,3 +57,8 @@ temp/
 # Backup Files
 *.bak
 *.backup
+
+# Rust & Wasm
+src-wasm/target/
+src-wasm/pkg/
+src/pkg/

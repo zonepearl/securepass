@@ -1,7 +1,7 @@
 
-import { CryptoEngine } from './crypto.js';
 import { vaultState } from './state/VaultState.js';
 import { VaultUnlockService } from './services/VaultUnlockService.js';
+import { WasmCryptoService } from './services/WasmCryptoService.js';
 import './components/index.js'; // Register all Web Components
 import { showToast } from './components/shared/ToastNotification.js';
 import { AutoLockService } from './services/AutoLockService.js';
@@ -28,7 +28,7 @@ document.getElementById('unlock-btn')?.addEventListener('click', async () => {
         if (result.success) {
             // Update global state via Singleton
             vaultState.setVault(result.vault || { entries: [] });
-            vaultState.setSessionKey(result.sessionKey);
+            vaultState.setCryptoBridge(result.cryptoBridge);
             vaultState.setDecoyMode(result.isDecoyMode);
 
             // Switch to vault mode layout
@@ -130,17 +130,19 @@ document.addEventListener('entry-saved', ((e: CustomEvent) => {
 }) as EventListener);
 
 document.addEventListener('save-vault', (async () => {
-    const sessionKey = vaultState.getSessionKey();
+    const bridge = vaultState.getCryptoBridge();
     const vault = vaultState.getVault();
     const isDecoy = vaultState.isDecoy();
 
-    if (!sessionKey) return;
+    if (!bridge) return;
 
-    const { ciphertext, iv } = await CryptoEngine.encrypt(JSON.stringify(vault), sessionKey);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = WasmCryptoService.encrypt(bridge, JSON.stringify(vault), iv);
+
     const storageKey = isDecoy ? 'decoy_vault' : 'encrypted_vault';
     localStorage.setItem(storageKey, JSON.stringify({
         iv: Array.from(iv),
-        data: Array.from(new Uint8Array(ciphertext))
+        data: Array.from(ciphertext)
     }));
     showToast("Vault Encrypted & Saved Successfully.", 'success');
 }) as EventListener);
@@ -170,29 +172,23 @@ document.addEventListener('change', ((e: Event) => {
 function initApp() {
     // Create and initialize components
     const vaultTable = document.createElement('vault-table');
-    vaultTable.style.display = 'none'; // Hidden component that manages tbody
     document.body.appendChild(vaultTable);
 
     const vaultSidebar = document.createElement('vault-sidebar');
-    vaultSidebar.style.display = 'none'; // Hidden component that manages category list
     document.body.appendChild(vaultSidebar);
 
     const vaultToolbar = document.createElement('vault-toolbar');
-    vaultToolbar.style.display = 'none'; // Hidden component that manages toolbar actions
     document.body.appendChild(vaultToolbar);
 
     const entryModalComponent = document.createElement('entry-modal');
-    entryModalComponent.style.display = 'none'; // Hidden component that manages modal
     document.body.appendChild(entryModalComponent);
 
     // Setup wizard component
     const setupWizard = document.createElement('setup-wizard');
-    setupWizard.style.display = 'none'; // Hidden by default
     document.body.appendChild(setupWizard);
 
     // Biometric authentication component
     const biometricAuth = document.createElement('biometric-auth');
-    biometricAuth.style.display = 'none'; // Hidden component that manages biometric buttons
     document.body.appendChild(biometricAuth);
 
     // Toast notification manager

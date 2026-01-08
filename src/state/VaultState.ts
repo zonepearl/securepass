@@ -14,18 +14,22 @@ interface VaultEntry {
     totpSecret?: string;
     favorite?: boolean;
     history?: string[];
+    notes?: string;
 }
 
 interface VaultData {
     entries: VaultEntry[];
 }
 
+import { CryptoBridge } from '../pkg/securepass_wasm.js';
+import { WasmCryptoService } from '../services/WasmCryptoService.js';
+
 export class VaultState {
     // Singleton instance
     private static instance: VaultState;
 
     // State
-    private sessionKey: CryptoKey | null = null;
+    private cryptoBridge: CryptoBridge | null = null;
     private vault: VaultData = { entries: [] };
     private isDecoyMode: boolean = false;
     private currentCategory: string = 'all';
@@ -56,8 +60,8 @@ export class VaultState {
     }
 
     // Getters
-    getSessionKey(): CryptoKey | null {
-        return this.sessionKey;
+    getCryptoBridge(): CryptoBridge | null {
+        return this.cryptoBridge;
     }
 
     getVault(): VaultData {
@@ -103,8 +107,8 @@ export class VaultState {
     }
 
     // Setters
-    setSessionKey(key: CryptoKey | null): void {
-        this.sessionKey = key;
+    setCryptoBridge(bridge: CryptoBridge | null): void {
+        this.cryptoBridge = bridge;
         this.notify();
     }
 
@@ -146,10 +150,18 @@ export class VaultState {
 
             // Track password history if password is changed
             if (updates.password && updates.password !== entry.password) {
-                const currentHistory = updates.history || entry.history || [];
-                // Add current password to history if it's not already at the top
-                if (currentHistory[0] !== entry.password) {
-                    updates.history = [entry.password, ...currentHistory].slice(0, 5);
+                const currentHistory = entry.history || [];
+                if (this.cryptoBridge) {
+                    updates.history = WasmCryptoService.rotateHistory(
+                        this.cryptoBridge,
+                        entry.password,
+                        currentHistory
+                    );
+                } else {
+                    // Fallback to TS logic if bridge not available (shouldn't happen in vault mode)
+                    if (currentHistory[0] !== entry.password) {
+                        updates.history = [entry.password, ...currentHistory].slice(0, 5);
+                    }
                 }
             }
 
@@ -194,7 +206,7 @@ export class VaultState {
 
     // Reset state (for logout)
     reset(): void {
-        this.sessionKey = null;
+        this.cryptoBridge = null;
         this.vault = { entries: [] };
         this.isDecoyMode = false;
         this.currentCategory = 'all';

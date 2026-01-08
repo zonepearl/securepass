@@ -17,9 +17,7 @@ export const calculateEntropy = (password: string): number => {
   return password.length * Math.log2(poolSize);
 };
 
-/**
- * Returns a label and color based on entropy bit-strength.
- */
+// Strength Labeling functions kept for UI
 export const getStrengthLabel = (entropy: number) => {
   if (entropy < 40) return { label: 'Weak', color: '#ef4444' };      // Red
   if (entropy < 60) return { label: 'Fair', color: '#f59e0b' };      // Orange
@@ -27,10 +25,7 @@ export const getStrengthLabel = (entropy: number) => {
   return { label: 'Excellent', color: '#3b82f6' };                   // Blue
 };
 
-/**
- * Generates a cryptographically secure random string.
- * Uses Web Crypto API instead of Math.random().
- */
+// PasswordOptions kept for type safety in fallback logic
 export interface PasswordOptions {
   length: number;
   useUppercase: boolean;
@@ -38,60 +33,5 @@ export interface PasswordOptions {
   useSymbols: boolean;
 }
 
-export const generatePassword = (options: PasswordOptions): string => {
-  const lowercase = "abcdefghijklmnopqrstuvwxyz";
-  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const numbers = "0123456789";
-  const symbols = "!@#$%^&*()_+~`|}{[]:;?><,./-=";
-
-  let charset = lowercase;
-  if (options.useUppercase) charset += uppercase;
-  if (options.useNumbers) charset += numbers;
-  if (options.useSymbols) charset += symbols;
-
-  let retVal = "";
-  const randomValues = new Uint32Array(options.length);
-  window.crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < options.length; i++) {
-    retVal += charset.charAt(randomValues[i] % charset.length);
-  }
-
-  return retVal;
-};
-
-/**
- * Generates a Mac-style password (xxxxxx-xxxxxx-xxxxxx)
- */
-export const generateMacPassword = (): string => {
-  const charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed ambiguous chars like O, 0, I, l
-  const generateBlock = () => {
-    let block = "";
-    const randomValues = new Uint32Array(6);
-    window.crypto.getRandomValues(randomValues);
-    for (let i = 0; i < 6; i++) {
-      block += charset.charAt(randomValues[i] % charset.length);
-    }
-    return block;
-  };
-
-  return `${generateBlock()}-${generateBlock()}-${generateBlock()}`;
-};
-
-/**
- * Generates a memorable passphrase
- */
-export const generatePassphrase = (): string => {
-  const words = [
-    "azure", "bright", "cloud", "dance", "eagle", "forest", "glory", "honey", "island", "jungle",
-    "knight", "lemon", "mountain", "night", "ocean", "pearl", "quartz", "river", "silver", "tiger",
-    "unique", "valley", "winter", "xenon", "yellow", "zebra", "alpha", "bravo", "cactus", "delta",
-    "echo", "frost", "garden", "harvest", "icon", "jade", "karma", "lunar", "magic", "nebula",
-    "orbit", "plasma", "quest", "rocket", "solar", "terra", "ultra", "vivid", "wave", "yield"
-  ];
-
-  const randomValues = new Uint32Array(4);
-  window.crypto.getRandomValues(randomValues);
-
-  return Array.from(randomValues).map(v => words[v % words.length]).join('-');
-};
+// Random generation logic moved to Wasm. 
+// Standard TS fallbacks (if needed) are now in components.

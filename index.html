@@ -4,143 +4,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self';
-        style-src 'self' 'unsafe-inline';
-        img-src 'self' data:;
-        connect-src 'self' https://api.pwnedpasswords.com;
-        object-src 'none';
-        base-uri 'self';
-        form-action 'self';
-        frame-ancestors 'none';">
-    <title>Secure Pass | Early Availability Edition</title>
-    <link rel="stylesheet" href="/src/theme.css">
+    <title>SecurePass | Zero-Knowledge WebVault</title>
+    <link rel="stylesheet" href="src/theme.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
 </head>
 
-<body>
-
+<body class="light-mode">
     <header>
-        <h1>🔐 Secure Pass</h1>
-        <status-indicator></status-indicator>
-        <div class="header-theme-toggle">
-            <theme-toggle global></theme-toggle>
-        </div>
+        <h1>SecurePass</h1>
+        <p>Zero-Knowledge Architecture | Argon2id + AES-256-GCM</p>
     </header>
 
     <main class="auth-view">
         <div id="app" class="auth-mode">
-            <!-- Decoy Indicator (shows when in stealth mode) -->
-            <div id="decoy-indicator" class="hidden">🎭 STEALTH MODE ACTIVE (DECOY VAULT)</div>
-
-            <!-- ============ AUTH SECTION ============ -->
+            <!-- ========== AUTHENTICATION VIEW ========== -->
             <section id="auth-section">
                 <div class="auth-card-inner">
-                    <label class="label-caps">MASTER ACCESS</label>
-                    <input type="password" id="master-pwd" placeholder="Enter Master Password">
+                    <label class="label-caps">Identity Vault Access</label>
+                    <input type="password" id="master-pwd" placeholder="Enter Master Password" autofocus>
                     <div class="auth-actions">
                         <button id="unlock-btn" class="btn-primary">Unlock Vault</button>
-                        <button id="bio-btn" class="btn-outline hidden">☝️ Bio-Unlock</button>
+                        <button id="bio-btn" class="btn-outline hidden">FaceID / TouchID</button>
                     </div>
                 </div>
 
                 <div class="features-grid">
-                    <div class="feature-item"><strong>🔒 Zero-Knowledge</strong>
-                        <p>AES-GCM 256-bit encryption. Keys never leave your device.</p>
+                    <div class="feature-item">
+                        <strong>Rust/Wasm Engine</strong>
+                        <p>Core cryptography and TOTP generation isolated in a high-performance Wasm sandbox.</p>
                     </div>
-                    <div class="feature-item"><strong>☝️ Passkey Unlock</strong>
-                        <p>True passwordless access with TouchID/FaceID & WebAuthn.</p>
+                    <div class="feature-item">
+                        <strong>Argon2id KDF</strong>
+                        <p>Military-grade key derivation resistant to GPU/ASIC cracking for maximum master key safety.
+                        </p>
                     </div>
-                    <div class="feature-item"><strong>🎭 Duress Mode</strong>
-                        <p>Plausible deniability with a secondary stealth vault.</p>
+                    <div class="feature-item">
+                        <strong>AES-256-GCM</strong>
+                        <p>All data is sealed with authenticated encryption, ensuring both confidentiality and data
+                            integrity.</p>
                     </div>
-                    <div class="feature-item"><strong>📥 Secure Backup</strong>
-                        <p>Export & Restore encrypted backups JSON.</p>
-                    </div>
-                    <div class="feature-item"><strong>⏱️ TOTP 2FA</strong>
-                        <p>Built-in authenticator with live countdown codes.</p>
-                    </div>
-                    <div class="feature-item"><strong>🔍 Breach Monitoring</strong>
-                        <p>Real-time checks against "Have I Been Pwned" database.</p>
-                    </div>
-                    <div class="feature-item"><strong>🛡️ XSS Prevention</strong>
-                        <p>15+ attack vectors blocked with enhanced sanitation.</p>
-                    </div>
-                    <div class="feature-item"><strong>✨ Enterprise UI</strong>
-                        <p>Glassmorphism, Toast Notifications & Smart Table layout.</p>
+                    <div class="feature-item">
+                        <strong>Smart Generator</strong>
+                        <p>Rust-backed entropy engine with guaranteed character diversity for uncrackable passwords.</p>
                     </div>
                 </div>
             </section>
 
-            <!-- ============ VAULT SECTION (New Layout) ============ -->
+            <!-- ========== VAULT VIEW ========== -->
             <section id="vault-content" class="hidden">
+                <div id="decoy-indicator" class="hidden">⚠️ DECOY WALLET ACTIVE</div>
+
                 <!-- Sidebar -->
-                <div class="sidebar">
+                <aside class="sidebar" id="sidebar-container">
                     <div class="sidebar-header">
-                        <h2>📂 Categories</h2>
+                        <h2>SecureVault</h2>
                     </div>
-
                     <div class="category-list" id="category-list">
-                        <div class="category-item active" data-category="all">
-                            <span class="category-icon">🔐</span>
-                            <span class="category-name">All Items</span>
-                            <span class="category-count" id="count-all">0</span>
-                        </div>
-                        <div class="category-item" data-category="favorites">
-                            <span class="category-icon">⭐</span>
-                            <span class="category-name">Favorites</span>
-                            <span class="category-count" id="count-favorites">0</span>
-                        </div>
-                        <div class="category-item" data-category="work">
-                            <span class="category-icon">💼</span>
-                            <span class="category-name">Work</span>
-                            <span class="category-count" id="count-work">0</span>
-                        </div>
-                        <div class="category-item" data-category="personal">
-                            <span class="category-icon">👤</span>
-                            <span class="category-name">Personal</span>
-                            <span class="category-count" id="count-personal">0</span>
-                        </div>
-                        <div class="category-item" data-category="finance">
-                            <span class="category-icon">💳</span>
-                            <span class="category-name">Finance</span>
-                            <span class="category-count" id="count-finance">0</span>
-                        </div>
-                        <div class="category-item" data-category="social">
-                            <span class="category-icon">🌐</span>
-                            <span class="category-name">Social</span>
-                            <span class="category-count" id="count-social">0</span>
-                        </div>
-                        <div class="category-item" data-category="other">
-                            <span class="category-icon">📋</span>
-                            <span class="category-name">Other</span>
-                            <span class="category-count" id="count-other">0</span>
-                        </div>
+                        <!-- Populated by VaultSidebar -->
                     </div>
-
                     <div class="sidebar-footer">
-                        <div style="margin-bottom: 12px;">
-                            <label
-                                style="font-size: 10px; font-weight: 600; opacity: 0.6; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Auto-Lock
-                                Vault</label>
-                            <select id="autolock-setting" class="select-minimal"
-                                style="width: 100%; font-size: 12px; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text);">
-                                <option value="60000">1 Minute</option>
-                                <option value="300000">5 Minutes</option>
-                                <option value="900000">15 Minutes</option>
-                                <option value="1800000">30 Minutes</option>
-                                <option value="0">Never</option>
-                            </select>
-                        </div>
-                        <duress-mode></duress-mode>
-                        <button id="enable-bio-btn" class="btn-outline" style="width: 100%; font-size: 12px;">Link
-                            Biometrics</button>
+                        <button id="enable-bio-btn" class="btn-ghost" style="width: 100%; justify-content: flex-start;">
+                            <span>🛡️ Security Hub</span>
+                        </button>
                     </div>
-                </div>
+                </aside>
 
-                <!-- Main Content -->
+                <!-- Main ContentArea -->
                 <div class="main-content">
-                    <!-- Toolbar -->
+                    <!-- Toolbar (Persistent) -->
                     <div class="toolbar">
                         <div class="toolbar-left">
                             <div class="search-box">
@@ -156,38 +90,47 @@
                         </div>
 
                         <div class="toolbar-right">
+                            <button id="dashboard-toggle-btn" class="btn-outline"
+                                title="Security Insights">Insights</button>
                             <button id="export-btn" class="btn-outline" title="Download Backup">Export</button>
                             <theme-toggle></theme-toggle>
                             <button id="lock-btn" class="btn-outline">Lock</button>
                         </div>
                     </div>
 
-                    <!-- Table Container -->
-                    <div class="table-container">
-                        <table class="passwords-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 60px;"></th>
-                                    <th>Service</th>
-                                    <th>Category</th>
-                                    <th>Username / Email</th>
-                                    <th style="width: 100px;">2FA</th>
-                                    <th style="width: 100px;">Security</th>
-                                    <th style="width: 110px;">Breach</th>
-                                    <th style="width: 120px;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vault-table-body">
-                                <!-- Entries will be populated by VaultTable component -->
-                            </tbody>
-                        </table>
+                    <!-- Vault Table View -->
+                    <div id="vault-table-view">
+                        <div class="table-container">
+                            <table class="passwords-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;"></th>
+                                        <th>Service</th>
+                                        <th>Category</th>
+                                        <th>Username / Email</th>
+                                        <th style="width: 100px;">2FA</th>
+                                        <th style="width: 100px;">Security</th>
+                                        <th style="width: 110px;">Breach</th>
+                                        <th style="width: 120px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vault-table-body">
+                                    <!-- Entries will be populated by VaultTable component -->
+                                </tbody>
+                            </table>
 
-                        <!-- Empty State -->
-                        <div id="empty-state" class="empty-state hidden">
-                            <div class="empty-state-icon">🔐</div>
-                            <h3>No passwords yet</h3>
-                            <p>Click "New Password" to add your first entry</p>
+                            <!-- Empty State -->
+                            <div id="empty-state" class="empty-state hidden">
+                                <div class="empty-state-icon">🔐</div>
+                                <h3>No passwords yet</h3>
+                                <p>Click "New Password" to add your first entry</p>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Security Dashboard View -->
+                    <div id="security-dashboard-container" class="hidden">
+                        <security-dashboard></security-dashboard>
                     </div>
                 </div>
             </section>
@@ -199,23 +142,31 @@
         <div class="modal-content" style="max-width: 500px;">
             <h2 style="margin-top: 0;" id="modal-title">New Password Entry</h2>
 
-            <div style="margin-bottom: 16px;">
-                <label
-                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">SERVICE
-                    NAME</label>
-                <input type="text" id="entry-title" placeholder="e.g., GitHub, Gmail, Bank of America">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label class="label-caps">Service Name</label>
+                    <input type="text" id="entry-title" placeholder="e.g., GitHub, Gmail">
+                </div>
+                <div class="form-group">
+                    <label class="label-caps">Category</label>
+                    <select id="entry-category" class="select-minimal"
+                        style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--form-bg); color: var(--text);">
+                        <option value="personal">Personal</option>
+                        <option value="work">Work</option>
+                        <option value="finance">Finance</option>
+                        <option value="social">Social</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="margin-bottom: 16px;">
-                <label
-                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">USERNAME
-                    / EMAIL</label>
+            <div style="margin-top: 16px;">
+                <label class="label-caps">Username / Email</label>
                 <input type="text" id="entry-username" placeholder="Optional">
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label
-                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">PASSWORD</label>
+            <div style="margin-top: 16px;">
+                <label class="label-caps">Password</label>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input type="text" id="new-password" placeholder="Password" style="flex: 1; margin: 0;">
                     <button id="gen-btn" class="btn-primary" title="Regenerate Password"
@@ -245,7 +196,7 @@
                                 style="width: 100%; height: 4px; margin: 8px 0;">
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
                             <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                 <input type="checkbox" id="gen-upper" checked style="width: auto; margin: 0;"> Upper
                             </label>
@@ -260,53 +211,54 @@
                 </div>
             </div>
 
-            <div style="margin-bottom: 16px;">
-                <label
-                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">CATEGORY</label>
-                <select id="entry-category"
-                    style="width: 100%; padding: 12px; margin: 0; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card);">
-                    <option value="personal">👤 Personal</option>
-                    <option value="work">💼 Work</option>
-                    <option value="finance">💳 Finance</option>
-                    <option value="social">🌐 Social</option>
-                    <option value="other">📋 Other</option>
-                </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                <div class="form-group">
+                    <label class="label-caps">2FA Secret (TOTP)</label>
+                    <input type="text" id="totp-secret" placeholder="Base32 Key" style="margin: 0;">
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 12px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                        <input type="checkbox" id="entry-favorite" style="width: auto; margin: 0;"> Add to Favorites
+                    </label>
+                </div>
             </div>
 
-            <div style="margin-bottom: 24px;">
-                <label style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 4px;">2FA
-                    SECRET (Optional - Base32)</label>
-                <input type="text" id="totp-secret" placeholder="JBSWY3DPEHPK3PXP"
-                    style="text-transform: uppercase; margin: 0;">
+            <div style="margin-top: 16px;">
+                <label class="label-caps">Encrypted Notes</label>
+                <textarea id="entry-notes" placeholder="Private notes..."
+                    style="width: 100%; min-height: 80px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--form-bg); color: var(--text); resize: vertical;"></textarea>
             </div>
 
-            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 24px;">
-                <input type="checkbox" id="entry-favorite" style="width: auto; margin: 0;">
-                <label for="entry-favorite" style="font-size: 13px; opacity: 0.8;">Mark as Favorite</label>
-            </div>
-
-            <!-- Password History Section -->
             <div id="history-section" class="hidden"
-                style="margin-bottom: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
-                <label
-                    style="font-size: 12px; font-weight: 600; opacity: 0.7; display: block; margin-bottom: 8px;">PREVIOUS
-                    PASSWORDS</label>
-                <div id="history-list"></div>
+                style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <label class="label-caps">Password History</label>
+                <div id="history-list" style="max-height: 120px; overflow-y: auto;"></div>
             </div>
 
-            <div style="display: flex; gap: 12px;">
-                <button id="modal-cancel-btn" class="btn-outline" style="flex: 1;">Cancel</button>
-                <button id="add-btn" class="btn-primary" style="flex: 1;">Save Entry</button>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                <button id="modal-cancel-btn" class="btn-outline">Cancel</button>
+                <button id="add-btn" class="btn-primary">Save Entry</button>
             </div>
         </div>
     </div>
 
+    <!-- ============ BIOMETRIC SETUP MODAL ============ -->
+    <!-- Managed by BiometricAuth in main.ts -->
+
+    <!-- ============ DURESS MODE COMPONENT ============ -->
+    <duress-mode></duress-mode>
+
     <footer>
-        <p><strong>&copy; 2026 Open source.</strong> All rights reserved.</p>
-        <p style="margin-top: 4px;">Zero-Knowledge Architecture &bull; AES-GCM 256-bit &bull; PWA Ready</p>
+        <p>&copy; 2026 SecurePass Identity. All data is encrypted locally using Wasm/AES-GCM.</p>
+        <div style="display: flex; justify-content: center; gap: 12px; margin-top: 8px;">
+            <span id="status-dot" style="background: #10b981;"></span>
+            <span style="opacity: 0.6;">Local-Only Mode Active</span>
+        </div>
     </footer>
 
-    <script type="module" src="/src/main.ts"></script>
+    <!-- Initializer scripts -->
+    <script type="module" src="src/main.ts"></script>
 </body>
 
 </html>

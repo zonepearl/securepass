@@ -1,11 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { VaultUnlockService } from './VaultUnlockService.js';
-import { CryptoEngine } from '../crypto.js';
+import { WasmCryptoService } from './WasmCryptoService.js';
 
-// Mock CryptoEngine and localStorage
-vi.mock('../crypto.js', () => ({
-    CryptoEngine: {
-        deriveKey: vi.fn(),
+// Mock Wasm and Service
+vi.mock('../pkg/securepass_wasm.js', () => ({
+    CryptoBridge: class {
+        constructor() { }
+    }
+}));
+
+vi.mock('./WasmCryptoService.js', () => ({
+    WasmCryptoService: {
+        createBridge: vi.fn(),
+        encrypt: vi.fn(),
         decrypt: vi.fn()
     }
 }));
@@ -31,16 +38,16 @@ describe('VaultUnlockService', () => {
         localStorage.setItem('vault_salt', JSON.stringify(Array.from(salt)));
         localStorage.setItem('encrypted_vault', JSON.stringify(encryptedData));
 
-        const mockKey = {} as CryptoKey;
-        (CryptoEngine.deriveKey as any).mockResolvedValue(mockKey);
-        (CryptoEngine.decrypt as any).mockResolvedValue(JSON.stringify(vault));
+        const mockBridge = {} as any;
+        (WasmCryptoService.createBridge as any).mockResolvedValue(mockBridge);
+        (WasmCryptoService.decrypt as any).mockReturnValue(JSON.stringify(vault));
 
         const result = await VaultUnlockService.unlock(password);
 
         expect(result.success).toBe(true);
         expect(result.vault).toEqual(vault);
         expect(result.isDecoyMode).toBe(false);
-        expect(CryptoEngine.deriveKey).toHaveBeenCalledWith(password, salt);
+        expect(WasmCryptoService.createBridge).toHaveBeenCalledWith(password, salt);
     });
 
     it('should unlock decoy vault correctly', async () => {
@@ -54,11 +61,14 @@ describe('VaultUnlockService', () => {
         localStorage.setItem('decoy_vault', JSON.stringify(encryptedDecoy));
         localStorage.setItem('decoy_password_hash', 'mock-hash');
 
-        const mockKey = {} as CryptoKey;
-        (CryptoEngine.deriveKey as any).mockResolvedValue(mockKey);
-        (CryptoEngine.decrypt as any).mockResolvedValue(JSON.stringify(vault));
+        const mockBridge = {} as any;
+        (WasmCryptoService.createBridge as any).mockResolvedValue(mockBridge);
+        (WasmCryptoService.decrypt as any).mockReturnValue(JSON.stringify(vault));
 
         const result = await VaultUnlockService.unlock(password);
+
+        expect(result.success).toBe(true);
+        expect(result.isDecoyMode).toBe(true);
 
         expect(result.success).toBe(true);
         expect(result.isDecoyMode).toBe(true);
@@ -69,8 +79,8 @@ describe('VaultUnlockService', () => {
         localStorage.setItem('vault_salt', JSON.stringify(Array.from(salt)));
         localStorage.setItem('encrypted_vault', JSON.stringify({ iv: [], data: [] }));
 
-        (CryptoEngine.deriveKey as any).mockResolvedValue({});
-        (CryptoEngine.decrypt as any).mockRejectedValue(new Error('Decryption failed'));
+        (WasmCryptoService.createBridge as any).mockResolvedValue({});
+        (WasmCryptoService.decrypt as any).mockImplementation(() => { throw new Error('Decryption failed'); });
 
         const result = await VaultUnlockService.unlock('wrong-password');
         expect(result.success).toBe(false);

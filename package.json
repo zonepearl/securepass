@@ -7,7 +7,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build:wasm && tsc && vite build",
+    "build:wasm": "wasm-pack build src-wasm --target web --out-dir ../src/pkg",
+    "build:all": "npm run build:wasm && npm run build",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",

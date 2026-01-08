@@ -9,8 +9,8 @@ import { vaultState } from '../../state/VaultState.js';
 import { SecurityScanner } from '../../security.js';
 import { calculateEntropy } from '../../utils/password.js';
 import { checkPasswordBreach } from '../../utils/breach-check.js';
-import * as OTPAuth from 'otpauth';
 import { showToast } from '../shared/ToastNotification.js';
+import { WasmCryptoService } from '../../services/WasmCryptoService.js';
 
 export class VaultTable extends BaseComponent {
     protected render(): void {
@@ -201,17 +201,14 @@ export class VaultTable extends BaseComponent {
     private showTOTPModal(entry: any): void {
         if (!entry.totpSecret) return;
 
-        try {
-            const totp = new OTPAuth.TOTP({
-                issuer: "WebVault",
-                label: "PearlYoung",
-                algorithm: "SHA1",
-                digits: 6,
-                period: 30,
-                secret: OTPAuth.Secret.fromBase32(entry.totpSecret)
-            });
+        const bridge = vaultState.getCryptoBridge();
+        if (!bridge) {
+            showToast("Vault connection Error.", 'error');
+            return;
+        }
 
-            const code = totp.generate();
+        try {
+            const code = WasmCryptoService.getTotpCode(bridge, entry.totpSecret);
             const formattedCode = code.match(/.{1,3}/g)?.join(' ') || code;
             navigator.clipboard.writeText(code);
             showToast(`Code Copied: ${formattedCode}`, 'success');

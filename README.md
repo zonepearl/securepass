@@ -15,15 +15,25 @@ SecurePass is a high-security, browser-based password manager built on a **Zero-
 
 *   **💎 Modern Sky UI**: A professional, high-end minimalist interface optimized for light and dark modes.
 *   **🛡️ Zero-Knowledge**: Your master password never leaves your device.
-*   **☝️ Biometric Unlock**: Use TouchID/FaceID (WebAuthn) for secure, passwordless access.
+*   **☝️ Biometric Unlock**: Modern Passkey support (WebAuthn). Cryptographic wrapping is handled in **Rust/Wasm** for maximum memory safety.
 *   **🎭 Duress Mode**: A "Panic Password" unlocks a fake decoy vault if you are forced to open it.
-*   **🔐 Built-in 2FA**: Generate TOTP codes for your accounts directly in the vault.
+*   **🔐 Built-in 2FA (Wasm)**: Generate high-precision TOTP codes directly in the vault using a Rust-Wasm engine.
+*   **🎲 Smart Generator**: High-entropy password generation that **guarantees** character diversity (Upper, Lower, Number, Symbol).
 *   **📥 Backup & Restore**: Export encrypted JSON backups to keep your data safe.
+*   **📊 Security Dashboard**: Real-time vault health analytics and breach detection powered by Wasm.
+*   **📝 Encrypted Notes**: Store private metadata securely alongside your passwords.
 *   **🔍 Breach Detection**: Real-time privacy-preserving checks against compromised databases.
 
 ---
 
 ## 🚀 Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+*   **Node.js** (v18+) & **npm**
+*   **Rust** (Latest Stable): [Install Rust](https://www.rust-lang.org/tools/install)
+*   **wasm-pack**: [Install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 
 ### Installation
 
@@ -70,21 +80,24 @@ SecurePass is a high-security, browser-based password manager built on a **Zero-
 
 ---
 
-## 🛠️ Developer & Technical Documentation
+## 📖 Developer & Technical Documentation
 
 For detailed architecture, security models, cryptographic specifications, and testing protocols, please refer to:
 
-👉 **[DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md)**
+👉 **[DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md)** — Includes a **[Rust-to-Wasm Journey](./DEVELOPER_MANUAL.md#️-the-journey-from-rust-to-typescript)** guide for beginners! 🦀  
+👉 **[src-wasm/README.md](./src-wasm/README.md)** — Logic Tier Architecture & Seqeunce Diagrams.
 
 ---
 
 ## 📦 Tech Stack
 
-*   **Language**: TypeScript
+*   **Languages**: TypeScript, Rust
+*   **Architecture**: Wasm Cryptographic Bridge (Isolated Logic Tier)
 *   **Bundler**: Vite
-*   **Crypto**: Native Web Crypto API (AES-GCM, PBKDF2, SHA-256)
-*   **Tests**: Vitest
-*   **Styles**: Modern CSS Variables (Light/Dark Mode)
+*   **Crypto**: Argon2id (KDF), AES-256-GCM (Cipher), totp-rs
+*   **Tooling**: wasm-pack, wasm-bindgen
+*   **Tests**: Vitest, Rust `#[test]`
+*   **Styles**: Modern CSS / Glassmorphism (Light/Dark Mode)
 
 ---
 

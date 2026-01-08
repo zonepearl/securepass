@@ -1,5 +1,5 @@
 import { BaseComponent } from '../BaseComponent.js';
-import { CryptoEngine } from '../../crypto.js';
+import { WasmCryptoService } from '../../services/WasmCryptoService.js';
 import { generateSalt } from '../../utils/crypto-utils.js';
 import { showToast } from './ToastNotification.js';
 
@@ -37,13 +37,15 @@ export class DuressMode extends BaseComponent {
         try {
             // Generate unique salt for duress vault
             const salt = generateSalt();
-            const key = await CryptoEngine.deriveKey(dPwd, salt);
-            const { ciphertext, iv } = await CryptoEngine.encrypt(JSON.stringify(decoy), key);
+            const bridge = await WasmCryptoService.createBridge(dPwd, salt);
+
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const ciphertext = WasmCryptoService.encrypt(bridge, JSON.stringify(decoy), iv);
 
             // Store decoy vault and its salt
             localStorage.setItem('decoy_vault', JSON.stringify({
                 iv: Array.from(iv),
-                data: Array.from(new Uint8Array(ciphertext))
+                data: Array.from(ciphertext)
             }));
             localStorage.setItem('decoy_salt', JSON.stringify(Array.from(salt)));
 

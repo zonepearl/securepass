@@ -64,6 +64,28 @@ export class VaultToolbar extends BaseComponent {
                 showToast((error as Error).message, 'error');
             }
         });
+
+        // Dashboard Toggle button
+        const dashboardBtn = document.getElementById('dashboard-toggle-btn');
+        dashboardBtn?.addEventListener('click', () => {
+            const tableView = document.getElementById('vault-table-view');
+            const dashboardView = document.getElementById('security-dashboard-container');
+
+            if (tableView && dashboardView) {
+                const isDashboard = !tableView.classList.contains('hidden');
+                if (!isDashboard) {
+                    tableView.classList.remove('hidden');
+                    dashboardView.classList.add('hidden');
+                    dashboardBtn.textContent = 'Insights';
+                } else {
+                    tableView.classList.add('hidden');
+                    dashboardView.classList.remove('hidden');
+                    dashboardBtn.textContent = 'Back to Vault';
+                    // Trigger refresh on dashboard
+                    window.dispatchEvent(new CustomEvent('refresh-dashboard'));
+                }
+            }
+        });
     }
 
     protected onStateChange(): void {

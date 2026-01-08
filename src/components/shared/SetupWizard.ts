@@ -4,15 +4,14 @@
  */
 
 import { BaseComponent } from '../BaseComponent.js';
-import { CryptoEngine } from '../../crypto.js';
-
+import { WasmCryptoService } from '../../services/WasmCryptoService.js';
 import { BackupService } from '../../utils/backup.js';
 import { showToast } from './ToastNotification.js';
 
 export class SetupWizard extends BaseComponent {
     protected render(): void {
         this.innerHTML = `
-            <div class="modal-overlay">
+            <div id="wizard-modal" class="modal-overlay hidden">
                 <div class="modal-content">
                     <div id="step-1" class="wizard-step">
                         <h2 style="margin-top: 0;">Welcome to WebVault 🛡️</h2>
@@ -115,13 +114,15 @@ export class SetupWizard extends BaseComponent {
 
             // Generate unique salt for this vault
             const salt = this.generateSalt();
-            const key = await CryptoEngine.deriveKey(p1, salt);
-            const { ciphertext, iv } = await CryptoEngine.encrypt(JSON.stringify(initialVault), key);
+            const bridge = await WasmCryptoService.createBridge(p1, salt);
+
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const ciphertext = WasmCryptoService.encrypt(bridge, JSON.stringify(initialVault), iv);
 
             // Store encrypted vault
             localStorage.setItem('encrypted_vault', JSON.stringify({
                 iv: Array.from(iv),
-                data: Array.from(new Uint8Array(ciphertext))
+                data: Array.from(ciphertext)
             }));
 
             // Store salt separately (unencrypted - salt is not secret)
@@ -146,7 +147,8 @@ export class SetupWizard extends BaseComponent {
      * Show the wizard modal
      */
     public show(): void {
-        this.style.display = 'block';
+        const modal = this.querySelector('#wizard-modal');
+        modal?.classList.remove('hidden');
         this.goToStep(1); // Start at step 1
     }
 
@@ -154,7 +156,8 @@ export class SetupWizard extends BaseComponent {
      * Hide the wizard modal
      */
     public hide(): void {
-        this.style.display = 'none';
+        const modal = this.querySelector('#wizard-modal');
+        modal?.classList.add('hidden');
     }
 
     protected onStateChange(): void {

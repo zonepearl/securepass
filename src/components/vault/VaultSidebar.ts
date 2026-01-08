@@ -14,13 +14,13 @@ interface Category {
 
 export class VaultSidebar extends BaseComponent {
     private categories: Category[] = [
-        { id: 'all', icon: '', name: 'All Items' },
-        { id: 'favorites', icon: '', name: 'Favorites' },
-        { id: 'work', icon: '', name: 'Work' },
-        { id: 'personal', icon: '', name: 'Personal' },
-        { id: 'finance', icon: '', name: 'Finance' },
-        { id: 'social', icon: '', name: 'Social' },
-        { id: 'other', icon: '', name: 'Other' }
+        { id: 'all', icon: '📦', name: 'All Items' },
+        { id: 'favorites', icon: '⭐', name: 'Favorites' },
+        { id: 'work', icon: '💼', name: 'Work' },
+        { id: 'personal', icon: '👤', name: 'Personal' },
+        { id: 'finance', icon: '💳', name: 'Finance' },
+        { id: 'social', icon: '🌐', name: 'Social' },
+        { id: 'other', icon: '📁', name: 'Other' }
     ];
 
     protected render(): void {

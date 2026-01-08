@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculateEntropy, getStrengthLabel, generatePassword, generateMacPassword, generatePassphrase } from './password.js'
+import { calculateEntropy, getStrengthLabel } from './password.js'
 
 describe('Password Utilities', () => {
   describe('calculateEntropy', () => {
@@ -84,77 +84,6 @@ describe('Password Utilities', () => {
       expect(getStrengthLabel(80).label).toBe('Excellent')
     })
   })
-
-  describe('generatePassword', () => {
-    const defaultOptions = {
-      length: 20,
-      useUppercase: true,
-      useNumbers: true,
-      useSymbols: true
-    };
-
-    it('should generate password of specified length', () => {
-      const password = generatePassword({ ...defaultOptions, length: 32 });
-      expect(password).toHaveLength(32);
-    });
-
-    it('should generate different passwords each time', () => {
-      const password1 = generatePassword(defaultOptions);
-      const password2 = generatePassword(defaultOptions);
-      expect(password1).not.toBe(password2);
-    });
-
-    it('should exclude symbols when requested', () => {
-      const options = { ...defaultOptions, length: 100, useSymbols: false };
-      const password = generatePassword(options);
-      expect(/[!@#$%^&*()_+~`|}{[\]:;?><,./=-]/.test(password)).toBe(false);
-    });
-
-    it('should exclude numbers when requested', () => {
-      const options = { ...defaultOptions, length: 100, useNumbers: false };
-      const password = generatePassword(options);
-      expect(/[0-9]/.test(password)).toBe(false);
-    });
-
-    it('should exclude uppercase when requested', () => {
-      const options = { ...defaultOptions, length: 100, useUppercase: false };
-      const password = generatePassword(options);
-      expect(/[A-Z]/.test(password)).toBe(false);
-    });
-
-    it('should only contain valid characters', () => {
-      const password = generatePassword({ ...defaultOptions, length: 100 });
-      const validCharset = /^[a-zA-Z0-9!@#$%^&*()\-_+=~`|}{[\]:;?><,./]+$/;
-      expect(validCharset.test(password)).toBe(true);
-    });
-  });
-
-  describe('generateMacPassword', () => {
-    it('should generate a password with three 6-char blocks separated by hyphens', () => {
-      const password = generateMacPassword();
-      expect(password).toMatch(/^[a-zA-Z0-9]{6}-[a-zA-Z0-9]{6}-[a-zA-Z0-9]{6}$/);
-    });
-
-    it('should be different each time', () => {
-      expect(generateMacPassword()).not.toBe(generateMacPassword());
-    });
-  });
-
-  describe('generatePassphrase', () => {
-    it('should generate a passphrase with 4 words separated by hyphens', () => {
-      const passphrase = generatePassphrase();
-      const parts = passphrase.split('-');
-      expect(parts).toHaveLength(4);
-      parts.forEach(word => {
-        expect(word.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should be different each time', () => {
-      expect(generatePassphrase()).not.toBe(generatePassphrase());
-    });
-  });
-
 
   describe('Real-world password examples', () => {
     const testCases = [

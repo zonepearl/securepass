@@ -10,49 +10,92 @@ import { showToast } from './ToastNotification.js';
 
 export class BiometricAuth extends BaseComponent {
     protected render(): void {
-        // This component doesn't render its own UI
-        // It attaches to existing buttons in the HTML
+        this.innerHTML = `
+            <div id="bio-modal" class="modal-overlay hidden">
+                <div class="modal-content" style="max-width: 400px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🛡️</div>
+                    <h2 style="margin-top: 0;">Link Biometrics</h2>
+                    <p style="font-size: 14px; opacity: 0.8; margin-bottom: 24px;">
+                        Confirm your Master Password to link this device with <strong>TouchID / FaceID</strong> for passwordless unlock.
+                    </p>
+                    
+                    <div class="form-group" style="text-align: left;">
+                        <label class="label-caps">Confirm Master Password</label>
+                        <input type="password" id="bio-confirm-pwd" placeholder="Master Password" style="margin-bottom: 0;">
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 24px;">
+                        <button id="bio-cancel-btn" class="btn-outline" style="flex: 1;">Cancel</button>
+                        <button id="bio-confirm-btn" class="btn-primary" style="flex: 1;">Link Device</button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     protected attachEventListeners(): void {
-        // Register biometric button
+        // Register biometric button (from sidebar)
         const registerBtn = document.getElementById('enable-bio-btn');
         registerBtn?.addEventListener('click', () => this.handleRegister());
 
-        // Biometric unlock button
+        // Biometric unlock button (from auth screen)
         const unlockBtn = document.getElementById('bio-btn');
         unlockBtn?.addEventListener('click', () => this.handleUnlock());
+
+        // Modal buttons
+        this.querySelector('#bio-cancel-btn')?.addEventListener('click', () => this.closeModal());
+        this.querySelector('#bio-confirm-btn')?.addEventListener('click', () => this.handleConfirm());
     }
 
     /**
-     * Handle biometric registration
+     * Open the registration modal
      */
     private async handleRegister(): Promise<void> {
-        // Check if vault is unlocked (sessionKey is available)
-        const sessionKey = vaultState.getSessionKey();
-        if (!sessionKey) {
+        // Check if vault is unlocked (cryptoBridge is available)
+        const bridge = vaultState.getCryptoBridge();
+        if (!bridge) {
             showToast("Please unlock your vault first before enabling biometrics.", 'error');
             return;
         }
 
-        // Get the current master password from input
-        const pwdInput = document.getElementById('master-pwd') as HTMLInputElement;
+        const modal = this.querySelector('#bio-modal');
+        modal?.classList.remove('hidden');
+
+        const pwdInput = this.querySelector('#bio-confirm-pwd') as HTMLInputElement;
+        if (pwdInput) {
+            pwdInput.value = '';
+            pwdInput.focus();
+        }
+    }
+
+    private closeModal(): void {
+        const modal = this.querySelector('#bio-modal');
+        modal?.classList.add('hidden');
+    }
+
+    /**
+     * Handle the actual registration after password confirmation
+     */
+    private async handleConfirm(): Promise<void> {
+        const pwdInput = this.querySelector('#bio-confirm-pwd') as HTMLInputElement;
         const masterPassword = pwdInput?.value;
 
         if (!masterPassword) {
-            showToast("Master password not found. Please unlock your vault first.", 'error');
+            showToast("Please enter your master password.", 'error');
             return;
         }
 
         try {
             await BiometricService.register(masterPassword);
-            showToast("✓ Passkey registered! Next time, unlock with TouchID/FaceID without entering password.", 'success');
+            showToast("✓ Passkey registered successfully!", 'success');
 
-            // Show the bio unlock button
+            this.closeModal();
+
+            // Show bio button on auth screen for next time
             document.getElementById('bio-btn')?.classList.remove('hidden');
         } catch (error) {
             console.error("Biometric registration failed:", error);
-            showToast((error as Error).message || "Passkey registration failed. Ensure you're using HTTPS and have a compatible device.", 'error');
+            showToast((error as Error).message || "Passkey registration failed.", 'error');
         }
     }
 
@@ -76,7 +119,7 @@ export class BiometricAuth extends BaseComponent {
             }
         } catch (error) {
             console.warn("Passkey unlock failed or cancelled:", error);
-            showToast((error as Error).message || "TouchID/FaceID authentication failed or was cancelled.", 'error');
+            showToast((error as Error).message || "TouchID/FaceID authentication failed.", 'error');
         }
     }
 

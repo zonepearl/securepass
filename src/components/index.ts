@@ -16,6 +16,7 @@ import './vault/VaultTable.js';
 import './vault/VaultSidebar.js';
 import './vault/VaultToolbar.js';
 import './vault/EntryModal.js';
+import './vault/SecurityDashboard.js';
 
 // Export for convenience
 export { ThemeToggle } from './shared/ThemeToggle.js';
@@ -26,6 +27,7 @@ export { VaultTable } from './vault/VaultTable.js';
 export { VaultSidebar } from './vault/VaultSidebar.js';
 export { VaultToolbar } from './vault/VaultToolbar.js';
 export { EntryModal } from './vault/EntryModal.js';
+export { SecurityDashboard } from './vault/SecurityDashboard.js';
 export { DuressMode } from './shared/DuressMode.js';
 export * from './shared/ToastNotification.js';
 

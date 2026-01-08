@@ -15,6 +15,8 @@
  * - Zero-knowledge: server never sees password or keys
  */
 
+import { WasmCryptoService } from './WasmCryptoService.js';
+
 export class BiometricService {
     private static readonly STORAGE_KEYS = {
         CREDENTIAL_ID: 'bio_credential_id',
@@ -31,60 +33,28 @@ export class BiometricService {
     };
 
     /**
-     * Derive a wrapping key from the WebAuthn credential ID
+     * Encrypt master password for passkey storage (using Rust/Wasm Argon2 + AES-GCM)
      */
-    private static async deriveWrappingKey(credentialId: Uint8Array): Promise<CryptoKey> {
-        // Import credential ID as key material
-        const keyMaterial = await crypto.subtle.importKey(
-            "raw",
-            credentialId as any,
-            { name: "PBKDF2" },
-            false,
-            ["deriveKey"]
-        );
-
-        // Derive a wrapping key using PBKDF2
-        return crypto.subtle.deriveKey(
-            {
-                name: "PBKDF2",
-                salt: this.WEBAUTHN_CONFIG.SALT as any,
-                iterations: this.WEBAUTHN_CONFIG.PBKDF2_ITERATIONS,
-                hash: "SHA-256"
-            },
-            keyMaterial,
-            { name: "AES-GCM", length: 256 },
-            false,
-            ["encrypt", "decrypt"]
-        );
-    }
-
-    /**
-     * Encrypt master password for passkey storage
-     */
-    private static async encryptPassword(password: string, wrappingKey: CryptoKey): Promise<{ iv: number[]; data: number[] }> {
-        const encoder = new TextEncoder();
+    private static async encryptPassword(password: string, credentialId: Uint8Array): Promise<{ iv: number[]; data: number[] }> {
+        const bioKey = await WasmCryptoService.deriveBioKey(credentialId);
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt(
-            { name: "AES-GCM", iv: iv as any },
-            wrappingKey,
-            encoder.encode(password)
-        );
+        const wrapped = await WasmCryptoService.wrapPassword(password, bioKey, iv);
+
         return {
             iv: Array.from(iv),
-            data: Array.from(new Uint8Array(encrypted))
+            data: Array.from(wrapped)
         };
     }
 
     /**
-     * Decrypt master password from passkey storage
+     * Decrypt master password from passkey storage (using Rust/Wasm AES-GCM)
      */
-    private static async decryptPassword(encryptedData: { iv: number[]; data: number[] }, wrappingKey: CryptoKey): Promise<string> {
-        const decrypted = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: new Uint8Array(encryptedData.iv) as any },
-            wrappingKey,
-            new Uint8Array(encryptedData.data).buffer
-        );
-        return new TextDecoder().decode(decrypted);
+    private static async decryptPassword(encryptedData: { iv: number[]; data: number[] }, credentialId: Uint8Array): Promise<string> {
+        const bioKey = await WasmCryptoService.deriveBioKey(credentialId);
+        const wrappedData = new Uint8Array(encryptedData.data);
+        const iv = new Uint8Array(encryptedData.iv);
+
+        return await WasmCryptoService.unwrapPassword(wrappedData, bioKey, iv);
     }
 
     /**
@@ -136,11 +106,8 @@ export class BiometricService {
 
         const credentialId = new Uint8Array(credential.rawId);
 
-        // Derive wrapping key from credential ID
-        const wrappingKey = await this.deriveWrappingKey(credentialId);
-
-        // Encrypt master password
-        const encryptedPassword = await this.encryptPassword(masterPassword, wrappingKey);
+        // Encrypt master password (Rust logic)
+        const encryptedPassword = await this.encryptPassword(masterPassword, credentialId);
 
         // Store credential ID and encrypted password
         localStorage.setItem(this.STORAGE_KEYS.CREDENTIAL_ID, btoa(String.fromCharCode(...credentialId)));
@@ -182,11 +149,10 @@ export class BiometricService {
             }
         });
 
-        // Biometric verification succeeded - decrypt master password
+        // Biometric verification succeeded - decrypt master password (Rust logic)
         const credentialId = Uint8Array.from(atob(idBase64), c => c.charCodeAt(0));
-        const wrappingKey = await this.deriveWrappingKey(credentialId);
         const encryptedPassword = JSON.parse(wrappedPasswordJson);
-        return await this.decryptPassword(encryptedPassword, wrappingKey);
+        return await this.decryptPassword(encryptedPassword, credentialId);
     }
 
     /**

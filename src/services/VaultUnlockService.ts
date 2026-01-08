@@ -4,13 +4,14 @@
  * Supports both real vault and decoy/duress vault
  */
 
-import { CryptoEngine } from '../crypto.js';
+import { WasmCryptoService } from './WasmCryptoService.js';
+import { CryptoBridge } from '../pkg/securepass_wasm.js';
 import { getSalt } from '../utils/crypto-utils.js';
 
 export interface UnlockResult {
     success: boolean;
     vault: { entries: any[] } | null;
-    sessionKey: CryptoKey | null;
+    cryptoBridge: CryptoBridge | null;
     isDecoyMode: boolean;
     error?: string;
 }
@@ -28,7 +29,7 @@ export class VaultUnlockService {
             return {
                 success: false,
                 vault: null,
-                sessionKey: null,
+                cryptoBridge: null,
                 isDecoyMode: false,
                 error: "Password is required"
             };
@@ -58,7 +59,7 @@ export class VaultUnlockService {
             return {
                 success: false,
                 vault: null,
-                sessionKey: null,
+                cryptoBridge: null,
                 isDecoyMode: false,
                 error: "No vault found. Please create a vault first."
             };
@@ -68,7 +69,7 @@ export class VaultUnlockService {
         return {
             success: false,
             vault: null,
-            sessionKey: null,
+            cryptoBridge: null,
             isDecoyMode: false,
             error: "Incorrect password"
         };
@@ -86,11 +87,12 @@ export class VaultUnlockService {
     ): Promise<UnlockResult> {
         try {
             const salt = getSalt(saltKey);
-            const key = await CryptoEngine.deriveKey(password, salt);
+            const bridge = await WasmCryptoService.createBridge(password, salt);
             const { iv, data } = JSON.parse(encryptedVault);
-            const decrypted = await CryptoEngine.decrypt(
-                new Uint8Array(data).buffer,
-                key,
+
+            const decrypted = WasmCryptoService.decrypt(
+                bridge,
+                new Uint8Array(data),
                 new Uint8Array(iv)
             );
             const vault = JSON.parse(decrypted);
@@ -98,14 +100,14 @@ export class VaultUnlockService {
             return {
                 success: true,
                 vault,
-                sessionKey: key,
+                cryptoBridge: bridge,
                 isDecoyMode: isDecoy
             };
         } catch (error) {
             return {
                 success: false,
                 vault: null,
-                sessionKey: null,
+                cryptoBridge: null,
                 isDecoyMode: false,
                 error: "Decryption failed"
             };

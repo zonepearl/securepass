@@ -1,5 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { VaultState } from './VaultState.js';
+
+// Mock Wasm module
+vi.mock('../pkg/securepass_wasm.js', () => ({
+    CryptoBridge: class {
+        constructor() { }
+        encrypt() { return new Uint8Array(); }
+        decrypt() { return ''; }
+        clear() { }
+    }
+}));
 
 describe('VaultState', () => {
     let state: VaultState;

@@ -6,9 +6,9 @@
 import { BaseComponent } from '../BaseComponent.js';
 import { vaultState } from '../../state/VaultState.js';
 import { SecurityScanner } from '../../security.js';
-import { generatePassword, generateMacPassword, generatePassphrase, PasswordOptions } from '../../utils/password.js';
 import { checkPasswordBreach } from '../../utils/breach-check.js';
 import { showToast } from '../shared/ToastNotification.js';
+import { WasmCryptoService } from '../../services/WasmCryptoService.js';
 
 interface EntryData {
     id?: string;
@@ -19,6 +19,7 @@ interface EntryData {
     totpSecret?: string;
     favorite?: boolean;
     history?: string[];
+    notes?: string;
 }
 
 export class EntryModal extends BaseComponent {
@@ -76,18 +77,23 @@ export class EntryModal extends BaseComponent {
 
         if (!pwdEl) return;
 
+        const bridge = vaultState.getCryptoBridge();
+        if (!bridge) {
+            showToast("Vault connection Error.", 'error');
+            return;
+        }
+
         if (genType === 'mac') {
-            pwdEl.value = generateMacPassword();
+            pwdEl.value = WasmCryptoService.generateMacPassword(bridge);
         } else if (genType === 'passphrase') {
-            pwdEl.value = generatePassphrase();
+            pwdEl.value = WasmCryptoService.generatePassphrase(bridge);
         } else {
-            const options: PasswordOptions = {
-                length: parseInt((document.getElementById('gen-length') as HTMLInputElement)?.value || '20', 10),
-                useUppercase: (document.getElementById('gen-upper') as HTMLInputElement)?.checked ?? true,
-                useNumbers: (document.getElementById('gen-numbers') as HTMLInputElement)?.checked ?? true,
-                useSymbols: (document.getElementById('gen-symbols') as HTMLInputElement)?.checked ?? true
-            };
-            pwdEl.value = generatePassword(options);
+            const length = parseInt((document.getElementById('gen-length') as HTMLInputElement)?.value || '20', 10);
+            const useUppercase = (document.getElementById('gen-upper') as HTMLInputElement)?.checked ?? true;
+            const useNumbers = (document.getElementById('gen-numbers') as HTMLInputElement)?.checked ?? true;
+            const useSymbols = (document.getElementById('gen-symbols') as HTMLInputElement)?.checked ?? true;
+
+            pwdEl.value = WasmCryptoService.generatePassword(bridge, length, useUppercase, useNumbers, useSymbols);
         }
     }
 
@@ -115,6 +121,7 @@ export class EntryModal extends BaseComponent {
             (document.getElementById('entry-category') as HTMLSelectElement).value = entry.category || 'personal';
             (document.getElementById('totp-secret') as HTMLInputElement).value = entry.totpSecret || '';
             (document.getElementById('entry-favorite') as HTMLInputElement).checked = !!entry.favorite;
+            (document.getElementById('entry-notes') as HTMLTextAreaElement).value = entry.notes || '';
 
             // Render history if available
             if (historySection && historyList) {
@@ -153,6 +160,7 @@ export class EntryModal extends BaseComponent {
             (document.getElementById('entry-category') as HTMLSelectElement).value = 'personal';
             (document.getElementById('totp-secret') as HTMLInputElement).value = '';
             (document.getElementById('entry-favorite') as HTMLInputElement).checked = false;
+            (document.getElementById('entry-notes') as HTMLTextAreaElement).value = '';
 
             if (historySection) historySection.classList.add('hidden');
         }
@@ -191,6 +199,7 @@ export class EntryModal extends BaseComponent {
         const categoryEl = document.getElementById('entry-category') as HTMLSelectElement;
         const totpSecretEl = document.getElementById('totp-secret') as HTMLInputElement;
         const favoriteEl = document.getElementById('entry-favorite') as HTMLInputElement;
+        const notesEl = document.getElementById('entry-notes') as HTMLTextAreaElement;
 
 
         if (!titleEl || !pwdEl || !titleEl.value || !pwdEl.value) {
@@ -266,7 +275,8 @@ export class EntryModal extends BaseComponent {
                 category: categoryEl?.value || 'personal',
                 totpSecret: totpSecret || undefined,
                 favorite: favoriteEl?.checked || false,
-                history: this.editingEntry?.history || []
+                history: this.editingEntry?.history || [],
+                notes: notesEl?.value || undefined
             };
 
             // Dispatch event with entry data
@@ -286,6 +296,7 @@ export class EntryModal extends BaseComponent {
             if (categoryEl) categoryEl.value = 'personal';
             if (totpSecretEl) totpSecretEl.value = "";
             if (favoriteEl) favoriteEl.checked = false;
+            if (notesEl) notesEl.value = "";
 
             this.closeModal();
 
