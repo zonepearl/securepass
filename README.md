@@ -1,6 +1,6 @@
 # SecurePass
 
-A client-side password manager built on a zero-knowledge model. All cryptographic operations run in a Rust/WebAssembly module; the TypeScript layer handles state management, UI, and browser API integration.
+A browser-based password manager. Cryptographic work — key derivation, encryption, TOTP — runs in Rust compiled to WebAssembly. The TypeScript layer handles the UI and browser APIs. Everything is encrypted on-device; the master password never leaves the browser.
 
 **Version:** 2.1.0 | **Status:** Personal use / beta
 
