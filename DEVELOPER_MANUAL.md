@@ -26,6 +26,7 @@
 
 ### Future
 - [🚀 Future Roadmap](#-future-roadmap-industry-comparison)
+- [📐 Engineer Roadmap & Complete Skill Set](ENGINEER_ROADMAP.md) — domain knowledge, cryptography, Wasm, Rust, TypeScript concepts in depth + recommended learning order
 
 ---
 

@@ -1,441 +1,285 @@
-# 🔐 SecurePass: Zero-Knowledge Password Manager
+# SecurePass
 
-SecurePass is a next-generation, rust-wasm-typescript-based web password manager engineered on a **Zero-Knowledge foundation**. It achieves elite performance and memory security by offloading all cryptographic heavy lifting to a **Rust-powered WebAssembly (Wasm) engine**, while utilizing TypeScript for a fluid and responsive user experience.
+A client-side password manager built on a zero-knowledge model. All cryptographic operations run in a Rust/WebAssembly module; the TypeScript layer handles state management, UI, and browser API integration.
 
-By isolating sensitive operations like Argon2id key derivation, AES-256-GCM encryption, and high-precision TOTP generation within the Wasm sandbox, SecurePass ensures that master keys never touch the JavaScript heap in plaintext. Beyond its hardened core, the platform offers a premium "Modern Sky" interface featuring biometric passkey unlocking, a stealthy Duress Mode decoy vault, a smart entropy engine with guaranteed character diversity, and a real-time security dashboard for comprehensive vault health monitoring.
+**Version:** 2.1.0 | **Status:** Personal use / beta
 
 ---
 
-## 📸 Overview
+## Screenshots
 
 <p align="center">
-   <img src="assets/securepass-light-mode.png" alt="SecurePass Light Mode" width="45%" />
+  <img src="assets/securepass-light-mode.png" alt="SecurePass Light Mode" width="45%" />
   <img src="assets/securepass-dark-mode.png" alt="SecurePass Dark Mode" width="45%" />
 </p>
 
 ---
 
-## 📊 Project Metrics
+## Architecture
 
-| Metric | Value |
-|--------|-------|
-| **TypeScript Code** | ~3,696 lines |
-| **Rust Code** | 391 lines |
-| **Total Tests** | 60 (100% passing) |
-| **Test Suites** | 5 files |
-| **Components** | 13 Web Components |
-| **Security Features** | 8 major features |
+SecurePass separates concerns across two runtime layers:
 
----
+**Logic layer — `src-wasm/src/lib.rs` (Rust → Wasm)**
 
-## ✨ Key Features
+All cryptographic operations are confined to a Rust module compiled to WebAssembly. The master key lives only in Wasm linear memory — it is never passed to the JavaScript heap as a string or object. The `CryptoBridge` struct zeroes its key on `drop()` via the `Zeroize` trait.
 
-*   **💎 Modern Sky UI**: A professional, high-end minimalist interface optimized for light and dark modes.
-*   **🛡️ Zero-Knowledge**: Your master password never leaves your device.
-*   **☝️ Biometric Unlock**: Modern Passkey support (WebAuthn). Cryptographic wrapping is handled in **Rust/Wasm** for maximum memory safety.
-*   **🎭 Duress Mode**: A "Panic Password" unlocks a fake decoy vault if you are forced to open it.
-*   **🔐 Built-in 2FA (Wasm)**: Generate high-precision TOTP codes directly in the vault using a Rust-Wasm engine.
-*   **🎲 Smart Generator**: High-entropy password generation that **guarantees** character diversity (Upper, Lower, Number, Symbol).
-*   **📥 Backup & Restore**: Export encrypted JSON backups to keep your data safe.
-*   **📊 Security Dashboard**: Real-time vault health analytics and breach detection powered by Wasm.
-*   **📝 Encrypted Notes**: Store private metadata securely alongside your passwords.
-*   **🔍 Breach Detection**: Real-time privacy-preserving checks against compromised databases.
+- Key derivation: Argon2id (`argon2` crate)
+- Encryption / decryption: AES-256-GCM (`aes-gcm` crate)
+- TOTP generation: RFC 6238 (`totp-rs` crate)
+- Password generation: hardware-backed CSPRNG (`rand` crate)
+- Biometric key wrapping: Argon2id(credentialId) → AES-GCM(masterPassword)
+- Memory cleanup: `ZeroizeOnDrop` on all key material
 
----
+**Orchestration layer — `src/` (TypeScript)**
 
-## 🚀 Getting Started
+Handles everything outside cryptography: persisting encrypted blobs to `localStorage`, managing application state, rendering Web Components, coordinating the WebAuthn flow, and the inactivity auto-lock timer.
 
-### Prerequisites
+- `WasmCryptoService` — typed wrapper around the Wasm module
+- `VaultUnlockService` — authentication with duress-mode fallthrough
+- `BiometricService` — WebAuthn credential create / get
+- `AutoLockService` — inactivity timeout, resets on user input events
+- `VaultState` — singleton reactive state with pub/sub listeners
+- `SecurityScanner` — input sanitisation, XSS pattern detection
 
-Before you begin, ensure you have the following installed:
-*   **Node.js** (v18+) & **npm**
-*   **Rust** (Latest Stable): [Install Rust](https://www.rust-lang.org/tools/install)
-*   **wasm-pack**: [Install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
-
-### Installation
-
-1.  **Clone the repository**:
-    ```bash
-    git clone git@github.com:zonepearl/keepassman.git
-    cd keepassman
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Run development server**:
-    ```bash
-    npm run dev
-    ```
-4.  **Build for production**:
-    ```bash
-    npm run build
-    ```
+**Component model:** 13 native Web Components (no framework). Components communicate via `CustomEvent` bubbling; `main.ts` listens at the document level and updates `VaultState`.
 
 ---
 
-## 📖 User Guide
+## Security Model
 
-### 1. Initial Setup
-*   Create a strong **Master Password** (Min 12 chars).
-*   This password is the *only* way to decrypt your data. **Do not lose it.**
+### Zero-knowledge
 
-### 2. Enabling Biometrics (Passkeys)
-*   Go to **Security Hub** (Sidebar footer or Toolbar).
-*   Click **Link Biometrics**.
-*   Verify with your device (TouchID/FaceID).
-*   *Note: Taking this action allows you to unlock the vault without typing your password each time.*
+No master password or derived key is ever transmitted off-device. There is no backend. Encryption and decryption happen entirely in the browser. The only outbound request is an opt-in breach check to `api.pwnedpasswords.com` using a k-anonymity SHA-1 prefix (the first 5 hex characters of the hash — the full hash is never sent).
 
-### 3. Setting Up Duress Mode
-*   Go to **Configure Duress** in the sidebar.
-*   Set a **Panic Password** (different from your Master Password).
-*   **How to use**: If someone forces you to unlock your vault, type the *Panic Password* at the login screen. It will stealthily unlock a fake vault with dummy data.
+### Key derivation
 
-### 4. Backup & Restore
-*   **Backup**: Click the **Exit/Export** button -> **Export Backup**. Safe to store anywhere (it's encrypted).
-*   **Restore**: on the Login/Setup screen, click **Restore from Backup** and select your JSON file.
+Argon2id is used for all key derivation. The parameters are tuned to be memory-hard, making offline GPU/ASIC brute-force attacks substantially more expensive than with iteration-only KDFs. A separate 256-bit random salt is generated per vault and stored in `localStorage` unencrypted (salts are not secret; their randomness is what matters).
 
----
+### Authenticated encryption
 
-## 🏗️ Architecture Deep Dive
+AES-256-GCM produces a 16-byte authentication tag over the ciphertext. Any modification to stored data causes decryption to fail with an error — it will not return corrupt plaintext. A fresh random 12-byte IV is generated for every encryption call.
 
-### Two-Tier Hybrid Architecture
+### Biometric unlock
 
-SecurePass follows a **Logic-vs-Orchestration** model across two distinct runtime tiers:
+WebAuthn is used to prove device presence, not for standard relying-party authentication. The `credentialId` returned by `navigator.credentials.get()` is fed into Argon2id to derive a deterministic wrapping key. The master password is AES-GCM-encrypted with that key and stored in `localStorage`. Biometric unlock: `WebAuthn assertion → credentialId → Argon2id → bioKey → AES-GCM decrypt → masterPassword → normal vault unlock`.
 
-#### **Tier 1: Logic Layer (Rust/Wasm)**
-**Location**: `src-wasm/src/lib.rs`
+### Duress mode
 
-**Purpose**: Cryptographic "Trust Anchor" - all sensitive operations isolated in WebAssembly
+A second AES-GCM-encrypted vault (`decoy_vault`) is maintained alongside the real vault, derived from a separate Argon2id salt. `VaultUnlockService` first attempts to decrypt the real vault; if that fails, it attempts the decoy vault. A successful decoy unlock sets `isDecoyMode = true` and redirects all subsequent writes to `decoy_vault`. The two unlock paths are indistinguishable from the outside.
 
-**Core Components**:
-- `CryptoBridge` struct - Main cryptographic engine
-- **Argon2id** key derivation (memory-hard, GPU-resistant)
-- **AES-256-GCM** authenticated encryption
-- **TOTP/2FA** generation using `totp-rs`
-- **Zeroize** pattern for memory security (wipes keys on drop)
-- Biometric key wrapping/unwrapping
+### Content Security Policy
 
-**🆕 Migration Update (2026-01-09)**:
-- All cryptographic operations now use Argon2id exclusively
-- Deprecated legacy PBKDF2 implementation removed
-- Test suite migrated to Wasm-backed cryptography
-- Enhanced CSP with clickjacking protection (`frame-ancestors 'none'`)
+```
+default-src 'self';
+script-src 'self' 'wasm-unsafe-eval';
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+connect-src 'self' https://api.pwnedpasswords.com;
+img-src 'self' data:;
+base-uri 'self';
+form-action 'self';
+frame-ancestors 'none';
+```
 
-**Key Functions**:
-1. `new()` - Master key derivation from password + salt
-2. `encrypt()/decrypt()` - AES-256-GCM operations
-3. `generate_password()` - High-entropy password generation with guaranteed character diversity
-4. `generate_mac_password()` - Mac OS style (xxx-xxx-xxx)
-5. `generate_passphrase()` - Word-based memorable passwords
-6. `get_totp_code()` - Time-based one-time password generation
-7. `rotate_history()` - Password history management (last 5)
-8. `derive_bio_key()` - Biometric credential key derivation
-9. `wrap_password()/unwrap_password()` - Master password encryption for biometric unlock
+`'wasm-unsafe-eval'` is required for `WebAssembly.instantiate()`. `frame-ancestors 'none'` must be delivered as an HTTP header — it has no effect in a `<meta>` tag. See [DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md#-security-headers-deployment-guide) for server configuration files (Vercel, Netlify, Apache, Nginx).
 
-#### **Tier 2: Orchestration Layer (TypeScript)**
-**Location**: `src/`
+### Known limitations
 
-**Purpose**: State management, UI coordination, persistence, hardware integration
-
-**Key Services**:
-- `WasmCryptoService` - Wrapper for Wasm bridge
-- `VaultUnlockService` - Authentication flow with duress mode fallback
-- `AutoLockService` - Inactivity-based auto-lock
-- `BiometricService` - WebAuthn/Passkey integration
-- `VaultState` - Singleton reactive state container
-- `SecurityScanner` - XSS prevention, input sanitization, Base32 validation
-
-**Web Components** (13 total):
-1. `<vault-table>` - Data grid with filtering
-2. `<vault-sidebar>` - Category navigation
-3. `<vault-toolbar>` - Action bar with search
-4. `<entry-modal>` - Entry editor with generator
-5. `<security-dashboard>` - Vault health analytics
-6. `<setup-wizard>` - Initial vault creation
-7. `<biometric-auth>` - Passkey enrollment
-8. `<duress-mode>` - Decoy vault setup
-9. `<theme-toggle>` - Light/dark switcher
-10. `<toast-notification>` - User feedback
-11. `<status-indicator>` - Connection status
+- **XSS**: A successful XSS attack on the running page can access `localStorage`. Mitigation: `SecurityScanner` rejects script tags and event-handler injection patterns; CSP blocks inline scripts. This is an inherent constraint of browser-based apps.
+- **Physical access**: `localStorage` data is encrypted, but the browser storage files on disk are accessible to anyone with OS-level access to the machine.
+- **No cross-device sync**: All data is stored locally. There is no mechanism to synchronise across browsers or devices in the current version.
+- **Wasm memory is readable**: JS can access Wasm linear memory via `wasmInstance.exports.memory.buffer`. The key never crosses the boundary as a JS value, but the Wasm memory itself is not fully opaque. `Zeroize` minimises the window, but a memory dump taken while the vault is unlocked could capture key material.
 
 ---
 
-## 🔐 Security Features Analysis
+## Data Schema
 
-### 1. **Zero-Knowledge Architecture** ✅
-- Master password **never** sent to server
-- All encryption/decryption happens in browser
-- Argon2id ensures GPU/ASIC resistance
-- AES-256-GCM provides authenticated encryption
+### Vault entry
 
-### 2. **Memory Security** ✅
-- Rust `Zeroize` trait physically wipes keys from RAM when `CryptoBridge` is dropped
-- Master keys isolated in Wasm linear memory (not accessible to JS heap)
-- Prevents memory scraping attacks
-
-### 3. **Biometric Unlock (WebAuthn)** ✅
-- Uses platform authenticators (FaceID/TouchID)
-- Master password encrypted with biometric-derived key
-- Key derivation: `Argon2id(credentialId) → bioKey`
-- Wrapping: `AES-GCM(masterPassword, bioKey) → localStorage`
-
-### 4. **Duress Mode (Decoy Vault)** ✅
-- Separate "panic password" unlocks fake vault
-- Fallthrough mechanism: tries primary → decoy
-- All saves redirect to `decoy_vault` localStorage slot when active
-- Stealthy operation with visual indicator
-
-### 5. **Password History Tracking** ✅
-- Last 5 passwords tracked per entry
-- Managed in Rust for memory safety
-- Automatic rotation on password updates
-
-### 6. **TOTP/2FA Integration** ✅
-- Native TOTP generation in Wasm (no external dependencies)
-- RFC 6238 compliant (SHA1, 6 digits, 30s window)
-- Base32 secret validation
-
-### 7. **Auto-Lock Service** ✅
-- Configurable timeout (1/5/15/30/60 min, never)
-- Resets on: mousemove, keydown, click, touchstart
-- Hard reload on timeout (clears state)
-
-### 8. **XSS Prevention** ✅
-Comprehensive scanning:
-- Script tag detection
-- Event handler injection (onclick, onerror, etc.)
-- JavaScript protocol URLs
-- Data URI schemes
-- SVG/iframe injection
-- CSS expression() attacks
-- HTML entity encoding attempts
-
----
-
-## 🎨 Advanced Password Generator
-
-Three generation strategies:
-
-| Strategy | Example Result | Use Case |
-|----------|----------------|----------|
-| **Standard** | `z8$K!mP9Q#2v` | High randomness, max security |
-| **Mac OS Style** | `abc12x-def45y-ghi78z` | Human-readable, easy to type |
-| **Passphrase** | `azure-tiger-vivid-pearl` | Memorable, high entropy |
-
-**Guaranteed Character Diversity**: The standard generator ensures at least one character from each enabled character set (uppercase, lowercase, numbers, symbols) is included and shuffled randomly.
-
----
-
-## 🗂️ Data Schema
-
-### Vault Entry Structure
 ```typescript
-{
+interface VaultEntry {
   id: string;           // UUID v4
-  title: string;        // Service name (XSS-sanitized)
-  username?: string;    // Optional identity
-  password: string;     // Encrypted secret
-  category: string;     // all|work|personal|finance|social|other
-  totpSecret?: string;  // Base32 2FA key
-  favorite?: boolean;   // Star flag
-  history?: string[];   // Last 5 passwords
+  title: string;        // XSS-sanitised service name
+  username?: string;
+  password: string;     // Plaintext in memory only; encrypted at rest
+  category: string;     // work | personal | finance | social | other
+  totpSecret?: string;  // Base32-encoded 2FA secret
+  favorite?: boolean;
+  history?: string[];   // Last 5 previous passwords
   notes?: string;       // Encrypted metadata
 }
 ```
 
-### LocalStorage Schema
-| Key | Content | Encryption |
-|-----|---------|------------|
-| `encrypted_vault` | Main vault JSON | AES-256-GCM |
+### localStorage slots
+
+| Key | Contents | At rest |
+|-----|----------|---------|
+| `encrypted_vault` | Main vault JSON (`VaultEntry[]`) | AES-256-GCM |
 | `decoy_vault` | Decoy vault JSON | AES-256-GCM |
-| `vault_salt` | 256-bit salt | Plaintext |
-| `bio_wrapped_password` | Master password | AES-256-GCM (bioKey) |
-| `bio_iv` | Biometric IV | Plaintext |
-| `bio_credential_id` | Passkey ID | Plaintext |
+| `vault_salt` | 256-bit KDF salt | Plaintext |
+| `decoy_salt` | 256-bit KDF salt for decoy | Plaintext |
+| `bio_credential_id` | WebAuthn credential ID | Plaintext (base64) |
+| `bio_wrapped_password` | Master password encrypted with biometric key | AES-256-GCM |
+| `bio_iv` | IV for biometric wrapping | Plaintext |
+
+Encrypted values are stored as `{ iv: number[], data: number[] }` — the `data` field contains ciphertext with the 16-byte GCM auth tag appended.
 
 ---
 
-## 🧪 Testing & Quality
+## Getting Started
 
-### Test Coverage (60 tests, 100% pass rate)
+### Prerequisites
 
-| Test Suite | Tests | Coverage |
-|------------|-------|----------|
-| `crypto.test.ts` | 21 | Encryption, key derivation, TOTP, biometric wrapping |
-| `password.test.ts` | 18 | Generator diversity, entropy calculation |
-| `VaultState.test.ts` | 11 | State management, filtering, history |
-| `AutoLockService.test.ts` | 6 | Timer logic, activity tracking |
-| `VaultUnlockService.test.ts` | 4 | Authentication flow, duress fallback |
+- **Node.js** v18+ and npm
+- **Rust** (stable) — [rustup.rs](https://rustup.rs/)
+- **wasm-pack** — [rustwasm.github.io/wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 
-**Rust Unit Tests**: 8 tests covering core cryptographic operations
+### Setup
 
-### Running Tests
 ```bash
-npm test          # Launch watch mode
-npm run test:run  # Single run
-npm run coverage  # Generate coverage report
+git clone <repository-url>
+cd securepass
+npm install
+npm run build:wasm   # compile Rust → Wasm (one-time; re-run after any lib.rs change)
+npm run dev          # start Vite dev server at http://localhost:5173
+```
+
+### Commands
+
+```bash
+npm run dev          # development server with HMR
+npm run build        # build:wasm + tsc + vite build → dist/
+npm run test         # Vitest in watch mode
+npm run test:run     # single test run
+npm run coverage     # coverage report via v8
+```
+
+When modifying Rust code, rebuild the Wasm module before restarting the dev server:
+
+```bash
+npm run build:wasm
+npm run dev
+```
+
+For Rust-only testing:
+
+```bash
+cd src-wasm && cargo test
 ```
 
 ---
 
-## 📦 Build & Deployment
+## Build Pipeline
 
-### Build Pipeline
-```bash
+```
 npm run build
-├─ Wasm: wasm-pack build src-wasm → src/pkg
-├─ TS: tsc (type checking)
-└─ Vite: bundling + terser minification
+├── wasm-pack build src-wasm --target web --out-dir ../src/pkg
+│   └── produces: securepass_wasm.wasm + securepass_wasm.js + .d.ts
+├── tsc --noEmit   (type checking only)
+└── vite build
+    └── Terser minification
+        ├── drop_console: true
+        ├── drop_debugger: true
+        ├── toplevel: true (top-level name mangling)
+        └── no sourcemaps
 ```
 
-### Production Optimizations
-- **Terser minification** (toplevel mangling)
-- **Console.log removal**
-- **Debugger statement removal**
-- **Comment stripping**
-- **Content-based hashing** for cache busting
-- **No sourcemaps** (prevents reverse engineering)
+Wasm compilation flags (`Cargo.toml [profile.release]`):
 
-### Wasm Compilation
-- Target: `wasm32-unknown-unknown`
-- Optimization: `-Oz` (size-optimized)
-- LTO: enabled
-- Panic: abort mode (reduces binary size)
+```toml
+opt-level = "z"      # size-optimised
+lto = true           # link-time optimisation
+codegen-units = 1    # required for LTO
+panic = "abort"      # removes panic unwind machinery
+```
+
+Sourcemaps are intentionally disabled in production. Console output is stripped by Terser — this also removes any accidental logging of sensitive values.
 
 ---
 
-## 📦 Tech Stack
+## Testing
 
-*   **Languages**: TypeScript, Rust
-*   **Architecture**: Wasm Cryptographic Bridge (Isolated Logic Tier)
-*   **Bundler**: Vite
-*   **Crypto**: Argon2id (KDF), AES-256-GCM (Cipher), totp-rs
-*   **Tooling**: wasm-pack, wasm-bindgen
-*   **Tests**: Vitest, Rust `#[test]`
-*   **Styles**: Modern CSS / Glassmorphism (Light/Dark Mode)
-*   **Fonts**: Inter, JetBrains Mono
+70+ tests across 5 TypeScript suites and 8 Rust unit tests.
 
----
+| Suite | Tests | What is covered |
+|-------|-------|----------------|
+| `crypto.test.ts` | 21 | AES-GCM encrypt/decrypt, Argon2id key derivation, TOTP, biometric key wrapping |
+| `password.test.ts` | 18 | Generator output diversity, entropy calculation |
+| `VaultState.test.ts` | 11 | State mutations, filtering, password history rotation |
+| `AutoLockService.test.ts` | 6 | Timer logic, activity event handling |
+| `VaultUnlockService.test.ts` | 4 | Normal unlock, duress fallthrough |
 
-## ⚠️ Security Considerations
-
-### Strengths
-✅ Zero-knowledge architecture
-✅ Memory-safe cryptography (Rust)
-✅ Authenticated encryption (AES-GCM)
-✅ Argon2id key derivation (GPU/ASIC resistant)
-✅ Memory wiping (Zeroize)
-✅ XSS prevention
-✅ Enhanced CSP headers with clickjacking protection
-✅ Comprehensive input validation
-✅ Single cryptographic implementation (no legacy fallbacks)
-
-### Frontend Limitations
-⚠️ **XSS Risk**: If compromised, malicious script could access `localStorage`
-   - **Mitigation**: SecurityScanner + CSP
-
-⚠️ **Physical Access**: Browser DevTools can inspect localStorage
-   - **Mitigation**: All data encrypted with master password
-
-⚠️ **No Server-Side Sync**: localStorage-only (no cross-device sync)
-   - **Trade-off**: Perfect for privacy, inconvenient for portability
+All crypto tests call `WasmCryptoService.init()` in `beforeAll()` — the Wasm module must be initialised before any test that calls into it.
 
 ---
 
-## 🎯 Industry Comparison
+## Tech Stack
 
-| Feature | SecurePass | Bitwarden | 1Password | KeePassXC |
-|---------|------------|-----------|-----------|-----------|
-| Zero-Knowledge | ✅ | ✅ | ✅ | ✅ |
-| Browser-Based | ✅ | ✅ | ❌ | ❌ |
-| Wasm Crypto | ✅ | ❌ | ❌ | ❌ |
-| Biometric Unlock | ✅ | ✅ | ✅ | ❌ |
-| Duress Mode | ✅ | ❌ | ❌ | ❌ |
-| TOTP Built-in | ✅ | ✅ | ✅ | ✅ |
-| Cross-Device Sync | ❌ | ✅ | ✅ | Manual |
-
-**Key Differentiators**:
-1. **Wasm-isolated cryptography** - Industry-leading memory security
-2. **Duress mode** - Unique anti-coercion feature
-3. **Zero dependencies** for crypto - Everything built from Rust crates
-4. **Modern architecture** - Web Components + reactive state
+| Layer | Technology |
+|-------|-----------|
+| Language (crypto) | Rust (stable) |
+| Language (UI) | TypeScript 5.9.3 |
+| Wasm toolchain | wasm-pack, wasm-bindgen 0.2.92 |
+| Bundler | Vite 7.3.1 |
+| Test runner | Vitest 4.0.16, happy-dom |
+| KDF | argon2 0.5.3 (Argon2id variant) |
+| Cipher | aes-gcm 0.10.3 (AES-256-GCM) |
+| TOTP | totp-rs 5.6.0 |
+| Randomness | rand 0.8.5 (OS entropy) |
+| Serialisation | serde 1.0 + serde-wasm-bindgen 0.6.5 |
+| Memory safety | zeroize 1.8.1 (ZeroizeOnDrop) |
 
 ---
 
-## 📈 Future Roadmap
+## Roadmap
 
-### High Priority
-- [ ] **File System Access API** - Sync to local `.spvault` file instead of localStorage
-- [ ] **Export/Import Improvements** - Better backup UX
-- [ ] **Custom Fields** - Arbitrary metadata per entry
+Items are listed by functional area, not priority ranking.
 
-### Advanced Features
-- [ ] **Hardware Keys** - YubiKey/FIDO2 support
-- [ ] **Breach Scanning (Offline)** - Local HIBP database
-- [ ] **Browser Extension** - Auto-fill integration
-- [ ] **Mobile PWA** - Installable progressive web app
-- [ ] **E2E Cloud Sync** - Optional encrypted backup to cloud
+**Browser extension**
+- Auto-fill `<input type="password">` fields in content scripts
+- Background service worker holds the decrypted `CryptoBridge`
+- Secure message passing between popup, background, and content scripts
+- Chrome, Firefox (and Safari / Edge as secondary targets)
 
----
+**Cross-device sync**
+- Phase 1: File System Access API — read/write a local `.spvault` file
+- Phase 2: User-supplied cloud storage (Dropbox, Google Drive) with client-side encryption before upload
+- Phase 3: Self-hosted relay (Docker) — stores only ciphertext
 
-## 📖 Developer & Technical Documentation
+**Import**
+- Bitwarden JSON, 1Password `.1pux`, LastPass CSV, Chrome/Firefox CSV export
 
-For detailed architecture, security models, cryptographic specifications, and testing protocols, please refer to:
+**Additional auth factors**
+- YubiKey / FIDO2 hardware key as second factor (then as primary in a later phase)
+- Emergency access: printable recovery codes; trusted-contact delegation with configurable wait period
 
-👉 **[DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md)** — Complete developer guide with Rust-to-Wasm journey
-👉 **[Changelog (v2.1.0)](./DEVELOPER_MANUAL.md#-changelog)** — Latest security enhancements & implementation details
-👉 **[Security Headers Guide](./DEVELOPER_MANUAL.md#-security-headers-deployment-guide)** — CSP deployment for all platforms
-👉 **[src-wasm/README.md](./src-wasm/README.md)** — Logic Tier Architecture & Sequence Diagrams
+**Vault features**
+- Custom fields per entry (text, hidden, date, URL)
+- File attachments (IndexedDB local; encrypted cloud in later phase)
+- Secure sharing via encrypted URL fragment with expiration
 
----
-
-## 🏁 Project Status
-
-**Maturity Level**: Beta/Production-Ready for personal use
-**Security Posture**: Strong (suitable for sensitive data)
-**Code Quality**: High (well-tested, documented, typed)
-
-### Recent Development Trajectory
-1. **Security Hardening (2026-01)** - Migrated all crypto to Argon2id, enhanced CSP
-2. **UI Modernization** - Transitioned to "Modern Sky" design system
-3. **Component Extraction** - Refactored monolithic code to Web Components
-4. **Wasm Integration v2.0** - Enhanced cryptographic bridge
-5. **Advanced Generator** - Added Mac/Passphrase modes
-6. **Testing Suite** - Achieved 60+ tests with 100% pass rate
+**Tooling**
+- PWA manifest for installable offline use
+- CLI for vault management and CI/CD integration
+- Automated breach scan on vault unlock (vs current on-demand)
+- Offline HIBP bloom filter (~500 MB local database)
 
 ---
 
-## 🎓 Code Quality
+## Developer Documentation
 
-### Assessment
-- ✅ Clean separation of concerns (Logic vs Orchestration)
-- ✅ Comprehensive documentation
-- ✅ Type-safe TypeScript
-- ✅ Memory-safe Rust
-- ✅ 100% test pass rate
-- ✅ Modern build tooling
-
-### Recommendations
-- Add E2E tests (Playwright/Cypress)
-- Implement code coverage reporting
-- Add performance benchmarks
-- Third-party security audit
+- [DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md) — architecture walkthrough, Rust/Wasm bridge, testing strategy, security headers, changelog
+- [ENGINEER_ROADMAP.md](./ENGINEER_ROADMAP.md) — full skill set reference: cryptography, Wasm, Rust, TypeScript, Web APIs, build tooling, recommended learning order
+- [src-wasm/README.md](./src-wasm/README.md) — Logic tier architecture and sequence diagrams
 
 ---
 
-## 📄 License
+## Contributing
 
-MIT License - See [LICENSE](LICENSE) file for details.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Open an issue before starting significant work so the approach can be discussed. Run `npm run test:run` and `npm run build` before submitting a pull request.
 
 ---
 
-**Built with ❤️ using Rust, WebAssembly, and TypeScript**
+## License
 
-*SecurePass: Where memory safety meets zero-knowledge security.*
+MIT — see [LICENSE](LICENSE).
