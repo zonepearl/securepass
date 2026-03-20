@@ -7,6 +7,7 @@
         content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.pwnedpasswords.com; img-src 'self' data:; base-uri 'self'; form-action 'self';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecurePass | Zero-Knowledge WebVault</title>
+    <link rel="icon" type="image/x-icon" href="/assets/icon_by_stitch_by_google.png">
     <link rel="stylesheet" href="src/theme.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +17,10 @@
 
 <body class="light-mode">
     <header>
-        <h1>SecurePass</h1>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+            <img src="assets/logo.png" alt="SecurePass Logo" style="width: 36px; height: 36px; object-fit: contain;">
+            <h1>SecurePass</h1>
+        </div>
         <p>Zero-Knowledge Architecture | Argon2id + AES-256-GCM</p>
         <div class="header-theme-toggle">
             <theme-toggle global></theme-toggle>
@@ -89,6 +93,9 @@
                             <button id="new-entry-btn" class="btn-primary">
                                 <span>Add Entry</span>
                             </button>
+                            <button id="gen-pwd-btn" class="btn-outline" title="Password Generator">
+                                <span>Generate</span>
+                            </button>
                             <button id="save-btn" class="btn-primary">
                                 Save Vault
                             </button>
@@ -142,17 +149,23 @@
         </div>
     </main>
 
-    <!-- ============ ENTRY EDITOR MODAL ============ -->
-    <div id="entry-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <h2 style="margin-top: 0;" id="modal-title">New Password Entry</h2>
+    <!-- ============ ENTRY SIDE PANEL ============ -->
+    <div id="entry-panel" class="entry-panel hidden">
+        <div class="entry-panel-backdrop" id="entry-panel-backdrop"></div>
+        <div class="entry-panel-drawer">
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div class="form-group">
+            <div class="entry-panel-header">
+                <h2 id="panel-title">New Entry</h2>
+                <button id="panel-close-btn" class="icon-btn" title="Close panel" style="font-size: 18px; width: 36px; height: 36px;">✕</button>
+            </div>
+
+            <div class="entry-panel-body">
+                <div>
                     <label class="label-caps">Service Name</label>
                     <input type="text" id="entry-title" placeholder="e.g., GitHub, Gmail">
                 </div>
-                <div class="form-group">
+
+                <div style="margin-top: 16px;">
                     <label class="label-caps">Category</label>
                     <select id="entry-category" class="select-minimal"
                         style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--form-bg); color: var(--text);">
@@ -163,88 +176,135 @@
                         <option value="other">Other</option>
                     </select>
                 </div>
-            </div>
 
-            <div style="margin-top: 16px;">
-                <label class="label-caps">Username / Email</label>
-                <input type="text" id="entry-username" placeholder="Optional">
-            </div>
-
-            <div style="margin-top: 16px;">
-                <label class="label-caps">Password</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="new-password" placeholder="Password" style="flex: 1; margin: 0;">
-                    <button id="gen-btn" class="btn-primary" title="Regenerate Password"
-                        style="padding: 0 12px;">Regen</button>
+                <div style="margin-top: 16px;">
+                    <label class="label-caps">Username / Email</label>
+                    <input type="text" id="entry-username" placeholder="Optional">
                 </div>
 
-                <!-- Generator Options UI -->
-                <div id="gen-options"
-                    style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px;">
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 11px; opacity: 0.6; display: block; margin-bottom: 4px;">FORMAT</label>
-                        <select id="gen-type" class="select-minimal"
-                            style="width: 100%; padding: 6px; border-radius: 4px;">
-                            <option value="standard">Standard (Random)</option>
-                            <option value="mac">Mac OS Style (xxx-xxx-xxx)</option>
-                            <option value="passphrase">Passphrase (Words)</option>
-                        </select>
+                <div style="margin-top: 16px;">
+                    <label class="label-caps">Password</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="text" id="new-password" placeholder="Password" style="flex: 1; margin: 0;">
+                        <button id="gen-btn" class="btn-primary" title="Regenerate Password"
+                            style="padding: 0 12px;">Regen</button>
                     </div>
 
-                    <div id="gen-std-options">
+                    <div id="gen-options"
+                        style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px;">
                         <div style="margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <label style="font-size: 11px; opacity: 0.6;">LENGTH: <span
-                                        id="gen-length-val">20</span></label>
-                            </div>
-                            <input type="range" id="gen-length" min="8" max="64" value="20"
-                                style="width: 100%; height: 4px; margin: 8px 0;">
+                            <label style="font-size: 11px; opacity: 0.6; display: block; margin-bottom: 4px;">FORMAT</label>
+                            <select id="gen-type" class="select-minimal"
+                                style="width: 100%; padding: 6px; border-radius: 4px;">
+                                <option value="standard">Standard (Random)</option>
+                                <option value="mac">Mac OS Style (xxx-xxx-xxx)</option>
+                                <option value="passphrase">Passphrase (Words)</option>
+                            </select>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" id="gen-upper" checked style="width: auto; margin: 0;"> Upper
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" id="gen-numbers" checked style="width: auto; margin: 0;"> Numbers
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" id="gen-symbols" checked style="width: auto; margin: 0;"> Symbols
-                            </label>
+                        <div id="gen-std-options">
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 11px; opacity: 0.6;">LENGTH: <span id="gen-length-val">20</span></label>
+                                <input type="range" id="gen-length" min="8" max="64" value="20"
+                                    style="width: 100%; height: 4px; margin: 8px 0;">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="gen-upper" checked style="width: auto; margin: 0;"> Upper
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="gen-numbers" checked style="width: auto; margin: 0;"> Numbers
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="gen-symbols" checked style="width: auto; margin: 0;"> Symbols
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div>
+                        <label class="label-caps">2FA Secret (TOTP)</label>
+                        <input type="text" id="totp-secret" placeholder="Base32 Key" style="margin: 0;">
+                    </div>
+                    <div style="display: flex; align-items: flex-end; padding-bottom: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                            <input type="checkbox" id="entry-favorite" style="width: auto; margin: 0;"> Add to Favorites
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <label class="label-caps">Encrypted Notes</label>
+                    <textarea id="entry-notes" placeholder="Private notes..."
+                        style="width: 100%; min-height: 80px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--form-bg); color: var(--text); resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+
+                <div id="history-section" class="hidden"
+                    style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <label class="label-caps">Password History</label>
+                    <div id="history-list" style="max-height: 120px; overflow-y: auto;"></div>
+                </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
-                <div class="form-group">
-                    <label class="label-caps">2FA Secret (TOTP)</label>
-                    <input type="text" id="totp-secret" placeholder="Base32 Key" style="margin: 0;">
+            <div class="entry-panel-footer">
+                <button id="panel-cancel-btn" class="btn-outline">Cancel</button>
+                <button id="panel-save-btn" class="btn-primary">Save Entry</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============ PASSWORD GENERATOR MODAL ============ -->
+    <div id="pg-modal" class="modal-overlay hidden">
+        <div class="modal-content" id="pg-modal-inner" style="max-width: 420px; width: 90%;">
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px;">Password Generator</h2>
+                <button id="pg-close-btn" class="icon-btn" title="Close" style="font-size: 18px; width: 36px; height: 36px;">✕</button>
+            </div>
+
+            <!-- Generated password output -->
+            <div style="background: var(--form-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                <input id="pg-output" type="text" readonly
+                    style="flex: 1; background: transparent; border: none; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text); padding: 0; margin: 0; outline: none; min-width: 0;"
+                    placeholder="Click ↺ to generate…">
+                <button id="pg-regen-btn" class="icon-btn" title="Generate new password" style="font-size: 18px; opacity: 0.6; flex-shrink: 0;">↺</button>
+                <button id="pg-copy-btn" class="btn-primary" style="flex-shrink: 0; padding: 7px 14px; font-size: 13px;">Copy</button>
+            </div>
+
+            <!-- Format selector -->
+            <div style="margin-bottom: 16px;">
+                <label class="label-caps">Format</label>
+                <select id="pg-gen-type" class="select-minimal"
+                    style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--form-bg); color: var(--text);">
+                    <option value="standard">Standard (Random)</option>
+                    <option value="mac">Mac OS Style (xxx-xxx-xxx)</option>
+                    <option value="passphrase">Passphrase (Words)</option>
+                </select>
+            </div>
+
+            <!-- Standard options -->
+            <div id="pg-std-options">
+                <div style="margin-bottom: 14px;">
+                    <label class="label-caps">Length: <span id="pg-length-val">20</span></label>
+                    <input type="range" id="pg-length" min="8" max="64" value="20"
+                        style="width: 100%; height: 4px; margin: 8px 0 0;">
                 </div>
-                <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 12px;">
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
-                        <input type="checkbox" id="entry-favorite" style="width: auto; margin: 0;"> Add to Favorites
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" id="pg-upper" checked style="width: auto; margin: 0;"> Uppercase
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" id="pg-numbers" checked style="width: auto; margin: 0;"> Numbers
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" id="pg-symbols" checked style="width: auto; margin: 0;"> Symbols
                     </label>
                 </div>
             </div>
 
-            <div style="margin-top: 16px;">
-                <label class="label-caps">Encrypted Notes</label>
-                <textarea id="entry-notes" placeholder="Private notes..."
-                    style="width: 100%; min-height: 80px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--form-bg); color: var(--text); resize: vertical;"></textarea>
-            </div>
-
-            <div id="history-section" class="hidden"
-                style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-                <label class="label-caps">Password History</label>
-                <div id="history-list" style="max-height: 120px; overflow-y: auto;"></div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
-                <button id="modal-cancel-btn" class="btn-outline">Cancel</button>
-                <button id="add-btn" class="btn-primary">Save Entry</button>
-            </div>
         </div>
     </div>
 

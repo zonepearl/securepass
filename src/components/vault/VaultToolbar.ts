@@ -37,6 +37,15 @@ export class VaultToolbar extends BaseComponent {
             }));
         });
 
+        // Password Generator button
+        const genPwdBtn = document.getElementById('gen-pwd-btn');
+        genPwdBtn?.addEventListener('click', () => {
+            this.dispatchEvent(new CustomEvent('open-generator', {
+                bubbles: true,
+                composed: true
+            }));
+        });
+
         // Save button
         const saveBtn = document.getElementById('save-btn');
         saveBtn?.addEventListener('click', () => {

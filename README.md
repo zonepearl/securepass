@@ -270,6 +270,7 @@ Items are listed by functional area, not priority ranking.
 
 - [DEVELOPER_MANUAL.md](./DEVELOPER_MANUAL.md) — architecture walkthrough, Rust/Wasm bridge, testing strategy, security headers, changelog
 - [ENGINEER_ROADMAP.md](./ENGINEER_ROADMAP.md) — full skill set reference: cryptography, Wasm, Rust, TypeScript, Web APIs, build tooling, recommended learning order
+- [TODO.md](./TODO.md) — known gaps, security improvements, and backlog
 - [src-wasm/README.md](./src-wasm/README.md) — Logic tier architecture and sequence diagrams
 
 ---

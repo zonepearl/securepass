@@ -104,6 +104,11 @@ document.addEventListener('new-entry', (() => {
     }
 }) as EventListener);
 
+document.addEventListener('open-generator', (() => {
+    const genModal = document.querySelector('password-generator-modal') as any;
+    if (genModal) genModal.open();
+}) as EventListener);
+
 // Listen for EntryModal component events
 document.addEventListener('modal-opened', ((e: CustomEvent) => {
     if (e.detail.entry) {
@@ -182,6 +187,9 @@ function initApp() {
 
     const entryModalComponent = document.createElement('entry-modal');
     document.body.appendChild(entryModalComponent);
+
+    const passwordGeneratorModal = document.createElement('password-generator-modal');
+    document.body.appendChild(passwordGeneratorModal);
 
     // Setup wizard component
     const setupWizard = document.createElement('setup-wizard');

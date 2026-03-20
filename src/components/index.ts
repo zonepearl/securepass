@@ -10,6 +10,7 @@ import './shared/SetupWizard.js';
 import './shared/BiometricAuth.js';
 import './shared/DuressMode.js';
 import './shared/ToastNotification.js';
+import './shared/PasswordGeneratorModal.js';
 
 // Vault components
 import './vault/VaultTable.js';
@@ -30,4 +31,5 @@ export { EntryModal } from './vault/EntryModal.js';
 export { SecurityDashboard } from './vault/SecurityDashboard.js';
 export { DuressMode } from './shared/DuressMode.js';
 export * from './shared/ToastNotification.js';
+export { PasswordGeneratorModal } from './shared/PasswordGeneratorModal.js';
 

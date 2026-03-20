@@ -1,6 +1,6 @@
 /**
- * Entry Modal Component
- * Manages password entry creation and editing with security validation
+ * Entry Panel Component
+ * Manages password entry creation and editing via a right-side slide-in panel
  */
 
 import { BaseComponent } from '../BaseComponent.js';
@@ -24,23 +24,42 @@ interface EntryData {
 
 export class EntryModal extends BaseComponent {
     private editingEntry: EntryData | null = null;
+    private closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
     protected render(): void {
-        // Modal structure is in HTML, this component manages behavior
+        // Panel structure lives in HTML; this component manages behaviour only
     }
 
     protected attachEventListeners(): void {
-        // Cancel button
-        const cancelBtn = document.getElementById('modal-cancel-btn');
-        cancelBtn?.addEventListener('click', () => this.closeModal());
+        // Close button (✕ in header)
+        document.getElementById('panel-close-btn')
+            ?.addEventListener('click', () => this.closePanel());
 
-        // Add/Update button
-        const addBtn = document.getElementById('add-btn');
-        addBtn?.addEventListener('click', () => this.handleSaveEntry());
+        // Cancel button (footer)
+        document.getElementById('panel-cancel-btn')
+            ?.addEventListener('click', () => this.closePanel());
+
+        // Save button
+        document.getElementById('panel-save-btn')
+            ?.addEventListener('click', () => this.handleSaveEntry());
+
+        // Backdrop click closes panel
+        document.getElementById('entry-panel-backdrop')
+            ?.addEventListener('click', () => this.closePanel());
+
+        // Escape key closes panel
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const panel = document.getElementById('entry-panel');
+                if (panel && panel.classList.contains('open')) {
+                    this.closePanel();
+                }
+            }
+        });
 
         // Generate password button
-        const genBtn = document.getElementById('gen-btn');
-        genBtn?.addEventListener('click', () => this.generateNewPassword());
+        document.getElementById('gen-btn')
+            ?.addEventListener('click', () => this.generateNewPassword());
 
         // Generator type change
         const genType = document.getElementById('gen-type') as HTMLSelectElement;
@@ -62,7 +81,7 @@ export class EntryModal extends BaseComponent {
             this.generateNewPassword();
         });
 
-        // Other options change
+        // Generator option checkboxes
         ['gen-upper', 'gen-numbers', 'gen-symbols'].forEach(id => {
             document.getElementById(id)?.addEventListener('change', () => this.generateNewPassword());
         });
@@ -98,22 +117,28 @@ export class EntryModal extends BaseComponent {
     }
 
     /**
-     * Open modal for creating or editing an entry
+     * Open the side panel for creating or editing an entry
      */
     public openModal(entry?: EntryData): void {
-        const modal = document.getElementById('entry-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
+        const panel = document.getElementById('entry-panel');
+        const panelTitle = document.getElementById('panel-title');
+        const saveBtn = document.getElementById('panel-save-btn') as HTMLButtonElement;
         const historySection = document.getElementById('history-section');
         const historyList = document.getElementById('history-list');
 
-        if (!modal) return;
+        if (!panel) return;
+
+        // Cancel any in-progress close animation
+        if (this.closeTimeout !== null) {
+            clearTimeout(this.closeTimeout);
+            this.closeTimeout = null;
+        }
 
         if (entry) {
             // Edit mode
             this.editingEntry = entry;
-            if (modalTitle) modalTitle.textContent = 'Edit Password Entry';
-            if (addBtn) addBtn.textContent = 'Update Entry';
+            if (panelTitle) panelTitle.textContent = 'Edit Entry';
+            if (saveBtn) saveBtn.textContent = 'Update Entry';
 
             (document.getElementById('entry-title') as HTMLInputElement).value = entry.title;
             (document.getElementById('entry-username') as HTMLInputElement).value = entry.username || '';
@@ -123,7 +148,7 @@ export class EntryModal extends BaseComponent {
             (document.getElementById('entry-favorite') as HTMLInputElement).checked = !!entry.favorite;
             (document.getElementById('entry-notes') as HTMLTextAreaElement).value = entry.notes || '';
 
-            // Render history if available
+            // Render password history
             if (historySection && historyList) {
                 if (entry.history && entry.history.length > 0) {
                     historySection.classList.remove('hidden');
@@ -134,7 +159,6 @@ export class EntryModal extends BaseComponent {
                         </div>
                     `).join('');
 
-                    // Attach copy events
                     historyList.querySelectorAll('.history-copy').forEach(btn => {
                         btn.addEventListener('click', (e) => {
                             const pwd = (e.currentTarget as HTMLElement).getAttribute('data-pwd');
@@ -151,8 +175,8 @@ export class EntryModal extends BaseComponent {
         } else {
             // Create mode
             this.editingEntry = null;
-            if (modalTitle) modalTitle.textContent = 'New Password Entry';
-            if (addBtn) addBtn.textContent = 'Save Entry';
+            if (panelTitle) panelTitle.textContent = 'New Entry';
+            if (saveBtn) saveBtn.textContent = 'Save Entry';
 
             (document.getElementById('entry-title') as HTMLInputElement).value = '';
             (document.getElementById('entry-username') as HTMLInputElement).value = '';
@@ -165,9 +189,13 @@ export class EntryModal extends BaseComponent {
             if (historySection) historySection.classList.add('hidden');
         }
 
-        modal.classList.remove('hidden');
+        // Reveal element, then trigger slide-in on next frame
+        panel.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            panel.classList.add('open');
+            (document.getElementById('entry-title') as HTMLInputElement)?.focus();
+        });
 
-        // Dispatch event for state sync
         this.dispatchEvent(new CustomEvent('modal-opened', {
             detail: { entry },
             bubbles: true,
@@ -176,11 +204,20 @@ export class EntryModal extends BaseComponent {
     }
 
     /**
-     * Close modal
+     * Slide the panel out, then hide it after the transition completes
      */
-    private closeModal(): void {
-        const modal = document.getElementById('entry-modal');
-        if (modal) modal.classList.add('hidden');
+    private closePanel(): void {
+        const panel = document.getElementById('entry-panel');
+        if (!panel) return;
+
+        panel.classList.remove('open');
+
+        // Wait for the CSS transition (350ms) before setting display:none
+        this.closeTimeout = setTimeout(() => {
+            panel.classList.add('hidden');
+            this.closeTimeout = null;
+        }, 360);
+
         this.editingEntry = null;
 
         this.dispatchEvent(new CustomEvent('modal-closed', {
@@ -190,7 +227,7 @@ export class EntryModal extends BaseComponent {
     }
 
     /**
-     * Handle saving entry with validation
+     * Handle saving entry with validation and security checks
      */
     private async handleSaveEntry(): Promise<void> {
         const titleEl = document.getElementById('entry-title') as HTMLInputElement;
@@ -201,7 +238,6 @@ export class EntryModal extends BaseComponent {
         const favoriteEl = document.getElementById('entry-favorite') as HTMLInputElement;
         const notesEl = document.getElementById('entry-notes') as HTMLTextAreaElement;
 
-
         if (!titleEl || !pwdEl || !titleEl.value || !pwdEl.value) {
             showToast("Service name and Password are required.", 'error');
             return;
@@ -210,19 +246,16 @@ export class EntryModal extends BaseComponent {
         try {
             // ========== ENHANCED SECURITY CHECKS ==========
 
-            // 1. XSS Prevention: Validate and sanitize title input
             const sanitizedTitle = SecurityScanner.validateAndSanitize(titleEl.value, "Service name");
+            const sanitizedUsername = usernameEl?.value
+                ? SecurityScanner.validateAndSanitize(usernameEl.value, "Username")
+                : '';
 
-            // 2. XSS Prevention: Validate username
-            const sanitizedUsername = usernameEl?.value ? SecurityScanner.validateAndSanitize(usernameEl.value, "Username") : '';
-
-            // 3. XSS Prevention: Validate password (allow special chars but check for scripts)
             if (SecurityScanner.detectXSS(pwdEl.value)) {
                 showToast("Password contains potentially malicious content. Please use a different password.", 'error');
                 return;
             }
 
-            // 4. Base32 Validation: Validate TOTP secret with enhanced checks
             const totpSecret = totpSecretEl?.value.replace(/\s+/g, '').toUpperCase() || '';
             if (totpSecret) {
                 const base32Validation = SecurityScanner.validateBase32(totpSecret);
@@ -232,7 +265,6 @@ export class EntryModal extends BaseComponent {
                 }
             }
 
-            // 5. Duplicate Password Detection: Check for password reuse
             const vault = vaultState.getVault();
             const duplicates = SecurityScanner.findDuplicatePasswords(
                 vault.entries,
@@ -246,23 +278,16 @@ export class EntryModal extends BaseComponent {
                     `This password is already used in:\n${duplicateList}\n\n` +
                     `Reusing passwords across accounts is a security risk.\n\n` +
                     `Do you want to continue anyway?`;
-
-                if (!confirm(message)) {
-                    return;
-                }
+                if (!confirm(message)) return;
             }
 
-            // 6. Breach Check: Check if password has been compromised
             const breachCount = await checkPasswordBreach(pwdEl.value);
             if (breachCount > 0) {
                 const breachMessage = `⚠️ Data Breach Warning\n\n` +
                     `This password has been found in ${breachCount.toLocaleString()} data breaches.\n\n` +
                     `Using this password is highly insecure and puts your account at risk.\n\n` +
                     `Do you want to continue anyway? (Not recommended)`;
-
-                if (!confirm(breachMessage)) {
-                    return;
-                }
+                if (!confirm(breachMessage)) return;
             }
 
             // ========== END SECURITY CHECKS ==========
@@ -279,29 +304,24 @@ export class EntryModal extends BaseComponent {
                 notes: notesEl?.value || undefined
             };
 
-            // Dispatch event with entry data
             this.dispatchEvent(new CustomEvent('entry-saved', {
-                detail: {
-                    entry: entryData,
-                    isEdit: !!this.editingEntry
-                },
+                detail: { entry: entryData, isEdit: !!this.editingEntry },
                 bubbles: true,
                 composed: true
             }));
 
-            // Clear form
-            titleEl.value = "";
-            if (usernameEl) usernameEl.value = "";
-            pwdEl.value = "";
+            // Clear form fields
+            titleEl.value = '';
+            if (usernameEl) usernameEl.value = '';
+            pwdEl.value = '';
             if (categoryEl) categoryEl.value = 'personal';
-            if (totpSecretEl) totpSecretEl.value = "";
+            if (totpSecretEl) totpSecretEl.value = '';
             if (favoriteEl) favoriteEl.checked = false;
-            if (notesEl) notesEl.value = "";
+            if (notesEl) notesEl.value = '';
 
-            this.closeModal();
+            this.closePanel();
 
         } catch (error) {
-            // Catch validation errors and display to user
             if (error instanceof Error) {
                 showToast(`Security Error: ${error.message}`, 'error');
             } else {
@@ -311,7 +331,7 @@ export class EntryModal extends BaseComponent {
     }
 
     protected onStateChange(): void {
-        // Modal doesn't need to react to state changes
+        // Panel doesn't need to react to state changes
     }
 }
 

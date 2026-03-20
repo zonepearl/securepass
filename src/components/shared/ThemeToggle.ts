@@ -53,6 +53,14 @@ export class ThemeToggle extends BaseComponent {
     connectedCallback(): void {
         super.connectedCallback();
 
+        // Restore persisted theme on first mount (if not already set)
+        const saved = localStorage.getItem('theme');
+        if (saved && !document.documentElement.hasAttribute('data-theme')) {
+            document.documentElement.setAttribute('data-theme', saved);
+            this.render();
+            this.attachEventListeners();
+        }
+
         // Listen for theme changes from other toggles
         window.addEventListener('theme-changed', () => {
             this.render();
